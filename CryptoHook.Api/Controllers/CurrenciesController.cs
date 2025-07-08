@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace CryptoHook.Api.Controllers;
 
 [ApiController]
-[Route("api/v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/currencies")]
 [ApiVersion("1.0")]
 public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, ILogger<CurrenciesController> logger) : ControllerBase
 {
@@ -14,7 +14,6 @@ public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, I
     private readonly ILogger<CurrenciesController> _logger = logger;
 
     [HttpGet]
-    [Route("available-currencies")]
     public ActionResult<Dictionary<string, string>> GetAvailableCurrencies()
     {
         try
