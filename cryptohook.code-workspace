@@ -24,6 +24,7 @@
             "**/obj": true,
             "**/.vs": true,
             "CryptoHook.Api": true,
+            ".github": true,
         },
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
