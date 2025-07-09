@@ -1,5 +1,7 @@
+using CryptoHook.Api.Manager;
 using CryptoHook.Api.Models.Config;
 using Microsoft.AspNetCore.Mvc;
+using NBitcoin;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,9 +20,13 @@ builder.Services.AddOptions<CurrencyConfigList>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddScoped<ConfigManager>();
+
+builder.Services.AddKeyedSingleton<ICryptoManager, BitcoinManager>("BTC");
+
 var app = builder.Build();
 
 app.UseHttpsRedirection();
-app.MapControllers();
+app.MapControllers(); ;
 
 app.Run();
