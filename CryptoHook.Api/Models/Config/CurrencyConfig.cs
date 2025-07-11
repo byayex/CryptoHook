@@ -91,7 +91,7 @@ public class CurrencyConfig
     [Required]
     public required IReadOnlyList<Confirmation> Confirmations { get; set; }
 
-    public uint GetConfirmationsNeeded(string Symbol, ulong paymentAmount)
+    public uint GetConfirmationsNeeded(ulong paymentAmount)
     {
         if (Confirmations.Count == 0)
         {

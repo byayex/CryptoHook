@@ -1,5 +1,6 @@
 using CryptoHook.Api.Models.Config;
 using CryptoHook.Api.Models.Consts;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -31,8 +32,7 @@ public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, I
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while retrieving available currencies");
-            return Problem("An error occurred while retrieving available currencies.",
-                statusCode: StatusCodes.Status500InternalServerError);
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while retrieving available currencies.");
         }
     }
 }
