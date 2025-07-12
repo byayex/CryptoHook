@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Numerics;
+using System.Text.Json.Serialization;
+using CryptoHook.Api.Models.Converters;
 using CryptoHook.Api.Models.Enums;
-using Microsoft.AspNetCore.Mvc;
 
 namespace CryptoHook.Api.Models.Payments;
 
@@ -20,6 +21,7 @@ public class PaymentCheckResult
     /// The total amount detected on the receiving address, in its smallest unit.
     /// </summary>
     [Required]
+    [JsonConverter(typeof(BigIntegerStringConverter))]
     public required BigInteger AmountDetected { get; set; }
 
     /// <summary>

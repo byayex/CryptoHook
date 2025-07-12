@@ -1,10 +1,8 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Numerics;
 using System.Text.Json.Serialization;
 using CryptoHook.Api.Models.Converters;
 using CryptoHook.Api.Models.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace CryptoHook.Api.Models.Payments;
 
@@ -16,14 +14,13 @@ public class PaymentRequest
     /// <summary>
     /// Gets or sets the public identifier for the payment request (used in API responses).
     /// </summary>
-    [Required]
+    [Key, Required]
     public Guid Id { get; set; }
 
     /// <summary>
     /// Gets or sets the internal sequential ID used for deriving crypto addresses.
     /// </summary>
     [JsonIgnore]
-    [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public ulong DerivationIndex { get; set; }
 
     /// <summary>
@@ -51,6 +48,12 @@ public class PaymentRequest
     /// </summary>
     [Required]
     public required string ReceivingAddress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the symbol that represents the currency for this payment request (e.g., BTC, ETH).
+    /// </summary>
+    [Required]
+    public required string CurrencySymbol { get; set; }
 
     /// <summary>
     /// Gets or sets the timestamp for when the payment request was created.

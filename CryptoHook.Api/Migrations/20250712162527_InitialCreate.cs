@@ -15,21 +15,26 @@ namespace CryptoHook.Api.Migrations
                 name: "PaymentRequests",
                 columns: table => new
                 {
-                    DerivationIndex = table.Column<ulong>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
                     Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    DerivationIndex = table.Column<ulong>(type: "INTEGER", nullable: false),
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     ExpectedAmount = table.Column<string>(type: "TEXT", nullable: false),
                     AmountPaid = table.Column<string>(type: "TEXT", nullable: false),
                     ReceivingAddress = table.Column<string>(type: "TEXT", nullable: false),
+                    CurrencySymbol = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     TransactionId = table.Column<string>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PaymentRequests", x => x.DerivationIndex);
+                    table.PrimaryKey("PK_PaymentRequests", x => x.Id);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaymentRequests_CurrencySymbol",
+                table: "PaymentRequests",
+                column: "CurrencySymbol");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PaymentRequests_Id",

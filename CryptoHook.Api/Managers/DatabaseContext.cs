@@ -18,6 +18,8 @@ public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbCont
             entity.HasIndex(e => e.Id)
                 .IsUnique();
 
+            entity.HasIndex(e => e.CurrencySymbol);
+
             entity.Property(e => e.ExpectedAmount)
                 .HasConversion(
                     v => v.ToString(),

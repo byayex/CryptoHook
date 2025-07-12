@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CryptoHook.Api.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20250712124638_InitialCreate")]
+    [Migration("20250712162527_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -22,9 +22,9 @@ namespace CryptoHook.Api.Migrations
 
             modelBuilder.Entity("CryptoHook.Api.Models.Payments.PaymentRequest", b =>
                 {
-                    b.Property<ulong>("DerivationIndex")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("AmountPaid")
                         .IsRequired()
@@ -33,14 +33,18 @@ namespace CryptoHook.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CurrencySymbol")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong>("DerivationIndex")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ExpectedAmount")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("Id")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ReceivingAddress")
@@ -53,7 +57,9 @@ namespace CryptoHook.Api.Migrations
                     b.Property<string>("TransactionId")
                         .HasColumnType("TEXT");
 
-                    b.HasKey("DerivationIndex");
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurrencySymbol");
 
                     b.HasIndex("Id")
                         .IsUnique();

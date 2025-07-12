@@ -4,6 +4,7 @@ using CryptoHook.Api.Managers.CryptoManager;
 using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace CryptoHook.Api.Controllers;
 
@@ -15,6 +16,32 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
     private readonly DatabaseContext _databaseContext = databaseContext;
     private readonly ILogger<PaymentController> _logger = logger;
     private readonly IServiceProvider _serviceProvider = serviceProvider;
+
+    [HttpGet]
+    [Route("{id}")]
+    public async Task<ActionResult<PaymentRequest>> GetPaymentRequest(Guid id)
+    {
+        _logger.LogInformation("Fetching payment request with ID: {Id}", id);
+
+        try
+        {
+            var paymentRequest = await _databaseContext.PaymentRequests.FindAsync(id);
+
+            if (paymentRequest == null)
+            {
+                _logger.LogWarning("Payment request with ID {Id} not found", id);
+                return NotFound($"Payment request with ID '{id}' not found");
+            }
+
+            _logger.LogInformation("Retrieved payment request: {@PaymentRequest}", paymentRequest);
+            return Ok(paymentRequest);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch payment request with ID {Id}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while fetching the payment request");
+        }
+    }
 
     [HttpPost]
     [Route("{symbol}/{amount}")]
@@ -46,12 +73,20 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
 
         try
         {
+            var maxDerivationIndex = _databaseContext.PaymentRequests
+                .Where(pr => string.Equals(symbol, pr.CurrencySymbol))
+                .Max(pr => (long?)pr.DerivationIndex) ?? 0;
+
+            var nextDerivationIndex = (ulong)(maxDerivationIndex + 1);
+
             var paymentRequest = new PaymentRequest
             {
                 Id = Guid.NewGuid(),
+                DerivationIndex = nextDerivationIndex,
                 Status = PaymentStatusEnum.Pending,
                 ExpectedAmount = amount,
                 AmountPaid = BigInteger.Zero,
+                CurrencySymbol = symbol.ToUpperInvariant(),
                 ReceivingAddress = "",
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(cryptoManager.CurrencyConfig.InitialPaymentTimeout),
@@ -61,15 +96,13 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             _databaseContext.PaymentRequests.Add(paymentRequest);
             _databaseContext.SaveChanges();
 
-            var receivingAddress = cryptoManager.GetAddressAtIndex((uint)paymentRequest.DerivationIndex);
-
-            paymentRequest.ReceivingAddress = receivingAddress;
+            paymentRequest.ReceivingAddress = cryptoManager.GetAddressAtIndex((uint)paymentRequest.DerivationIndex);
             _databaseContext.SaveChanges();
 
             transaction.Commit();
 
             _logger.LogInformation("Created payment request {Id} with address {Address} at derivation index {Index}",
-                paymentRequest.Id, receivingAddress, paymentRequest.DerivationIndex);
+                paymentRequest.Id, paymentRequest.ReceivingAddress, paymentRequest.DerivationIndex);
 
             return Ok(paymentRequest);
         }
