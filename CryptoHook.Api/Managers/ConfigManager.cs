@@ -1,6 +1,8 @@
 using CryptoHook.Api.Models.Configs;
 using Microsoft.Extensions.Options;
 
+namespace CryptoHook.Api.Managers;
+
 public class ConfigManager
 {
     private readonly ILogger<ConfigManager> _logger;

@@ -13,8 +13,8 @@ A simple, self-hosted, open-source cryptocurrency payment processor.
   - use one electrum server to get the data
     - cross-validating this through two / three different apis
       - routing everything over tor network
-- Fixing the "\_Amount" Bug when the appsettings show to the BigInteger "Amount" it does not map correctly when mapping (0)
-  - temporarly fixing this bug mapping the string to a private field and then parsing it from the field
+- Its important that if someone starts using this he HAS to use a new hd wallet because we just start at 0
+- We use BigInteger and this has to be respected on the system the receives the api (mostly frontend)
 
 ## Bitcoin
 

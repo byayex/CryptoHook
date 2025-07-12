@@ -1,6 +1,5 @@
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Consts;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 

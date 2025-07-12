@@ -11,14 +11,14 @@ public class Confirmation
 {
     public required uint ConfirmationsNeeded { get; set; }
 
-    private string _Amount { get; set; }
+    private string? MinAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the transaction amount threshold.
     /// </summary>
     public required BigInteger Amount
     {
-        get => BigInteger.Parse(_Amount ?? "0");
-        set => _Amount = value.ToString();
+        get => BigInteger.Parse(MinAmount ?? "0");
+        set => MinAmount = value.ToString();
     }
 }

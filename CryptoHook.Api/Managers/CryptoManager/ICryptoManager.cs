@@ -1,7 +1,7 @@
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
 
-namespace CryptoHook.Api.Manager.CryptoManager;
+namespace CryptoHook.Api.Managers.CryptoManager;
 
 public interface ICryptoManager
 {

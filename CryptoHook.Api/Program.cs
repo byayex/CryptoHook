@@ -1,8 +1,6 @@
-using System.Numerics;
-using CryptoHook.Api.Manager;
-using CryptoHook.Api.Manager.CryptoManager;
+using CryptoHook.Api.Managers;
+using CryptoHook.Api.Managers.CryptoManager;
 using CryptoHook.Api.Models.Configs;
-using CryptoHook.Api.Models.Payments;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,29 +37,8 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
-    dbContext.Database.Migrate();
-    dbContext.PaymentRequests.Add(new PaymentRequest
-    {
-        ExpectedAmount = BigInteger.Parse("100000000"), // 1 BTC in satoshis
-        AmountPaid = BigInteger.Zero,
-        ReceivingAddress = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-        CreatedAt = DateTime.UtcNow,
-        ExpiresAt = DateTime.UtcNow.AddDays(30),
-        Status = CryptoHook.Api.Models.Enums.PaymentStatusEnum.Pending,
-        TransactionId = null
-    });
-    dbContext.PaymentRequests.Add(new PaymentRequest
-    {
-        ExpectedAmount = BigInteger.Parse("500000000000000000000000000000000000000000000000000000000000000000"), // 1 BTC in satoshis
-        AmountPaid = BigInteger.Zero,
-        ReceivingAddress = "1A1zPdsfdsfsdfsdfsdfLmv7DivfNa",
-        CreatedAt = DateTime.UtcNow,
-        ExpiresAt = DateTime.UtcNow.AddDays(30),
-        Status = CryptoHook.Api.Models.Enums.PaymentStatusEnum.Pending,
-        TransactionId = null
-    });
-    dbContext.SaveChanges();
+    var context = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
+    context.Database.Migrate();
 }
 
 app.UseHttpsRedirection();

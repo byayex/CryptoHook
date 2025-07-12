@@ -1,7 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Numerics;
+using System.Text.Json.Serialization;
+using CryptoHook.Api.Models.Converters;
 using CryptoHook.Api.Models.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace CryptoHook.Api.Models.Payments;
 
@@ -11,11 +14,17 @@ namespace CryptoHook.Api.Models.Payments;
 public class PaymentRequest
 {
     /// <summary>
-    /// Gets or sets the primary key for the payment request.
+    /// Gets or sets the public identifier for the payment request (used in API responses).
     /// </summary>
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public ulong Id { get; set; }
+    [Required]
+    public Guid Id { get; set; }
+
+    /// <summary>
+    /// Gets or sets the internal sequential ID used for deriving crypto addresses.
+    /// </summary>
+    [JsonIgnore]
+    [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public ulong DerivationIndex { get; set; }
 
     /// <summary>
     /// Gets or sets the current status of the payment request (e.g., Pending, Paid, Expired).
@@ -27,12 +36,14 @@ public class PaymentRequest
     /// Gets or sets the amount of currency expected for this payment, in its smallest unit (e.g., satoshis).
     /// </summary>
     [Required]
+    [JsonConverter(typeof(BigIntegerStringConverter))]
     public required BigInteger ExpectedAmount { get; set; }
 
     /// <summary>
     /// Gets or sets the total amount of currency that has been paid towards this request so far.
     /// </summary>
     [Required]
+    [JsonConverter(typeof(BigIntegerStringConverter))]
     public required BigInteger AmountPaid { get; set; }
 
     /// <summary>

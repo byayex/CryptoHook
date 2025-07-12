@@ -4,7 +4,7 @@ using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
 using NBitcoin;
 
-namespace CryptoHook.Api.Manager.CryptoManager;
+namespace CryptoHook.Api.Managers.CryptoManager;
 
 public class BitcoinManager : ICryptoManager
 {
@@ -102,6 +102,13 @@ public class BitcoinManager : ICryptoManager
             return paymentCheckResult;
         }
 
+        if (transactions.Count <= 0)
+        {
+            _logger.LogInformation("No payment detected for {Symbol} at {Address}", Symbol, request.ReceivingAddress);
+            paymentCheckResult.Status = PaymentStatusEnum.Pending;
+            return paymentCheckResult;
+        }
+
         var transaction = transactions[0];
 
         paymentCheckResult.TransactionId = transaction.GetHash().ToString();
@@ -125,13 +132,6 @@ public class BitcoinManager : ICryptoManager
             .Sum(o => o.Value.ToUnit(MoneyUnit.Satoshi));
 
         paymentCheckResult.Confirmations = await GetConfirmationsAsync(paymentCheckResult.TransactionId);
-
-        if (paymentCheckResult.AmountDetected <= 0)
-        {
-            _logger.LogInformation("No payment detected for {Symbol} at {Address}", Symbol, request.ReceivingAddress);
-            paymentCheckResult.Status = PaymentStatusEnum.Pending;
-            return paymentCheckResult;
-        }
 
         if (paymentCheckResult.AmountDetected < request.ExpectedAmount)
         {
