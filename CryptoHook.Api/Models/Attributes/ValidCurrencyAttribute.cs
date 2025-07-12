@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CryptoHook.Api.Models.Consts;
-using CryptoHook.Api.Models.Config;
+using CryptoHook.Api.Models.Configs;
 
 namespace CryptoHook.Api.Models.Attributes;
 

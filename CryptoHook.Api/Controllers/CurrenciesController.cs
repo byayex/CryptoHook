@@ -1,4 +1,4 @@
-using CryptoHook.Api.Models.Config;
+using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Consts;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +22,7 @@ public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, I
             _logger.LogInformation("Retrieving available currencies");
 
             var availableCurrencies = AvailableCurrencies.Currencies
-                .Where(kv => _currencyConfig.CurrencyConfigs.Any(c => c.Symbol == kv.Key && c.IsEnabled))
+                .Where(kv => _currencyConfig.Any(c => c.Symbol == kv.Key && c.IsEnabled))
                 .ToDictionary(kv => kv.Key, kv => kv.Value);
 
             _logger.LogInformation("Successfully retrieved {Count} available currencies", availableCurrencies.Count);

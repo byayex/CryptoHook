@@ -1,12 +1,12 @@
-using CryptoHook.Api.Models.Config;
-using NBitcoin;
+using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Payments;
 
 namespace CryptoHook.Api.Manager.CryptoManager;
 
 public interface ICryptoManager
 {
-    BitcoinAddress GetAddressAtIndex(uint index);
-    Task<bool> IsPaymentConfirmed(string address, ulong paymentAmount);
+    string GetAddressAtIndex(uint index);
+    Task<PaymentCheckResult> CheckTransactionStatus(PaymentRequest request);
     string Symbol { get; }
     CurrencyConfig CurrencyConfig { get; }
 }

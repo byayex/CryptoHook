@@ -1,26 +1,35 @@
-using CryptoHook.Api.Models.Config;
+using CryptoHook.Api.Models.Configs;
+using Microsoft.Extensions.Options;
 
-namespace CryptoHook.Api.Manager;
-
-public class ConfigManager(CurrencyConfigList currencyConfigList, ILogger<ConfigManager> logger)
+public class ConfigManager
 {
-    private readonly ILogger<ConfigManager> _logger = logger;
-    private readonly CurrencyConfigList _currencyConfigList = currencyConfigList;
+    private readonly ILogger<ConfigManager> _logger;
+    private readonly CurrencyConfigList _currencyConfigList;
+
+    public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger)
+    {
+        _logger = logger;
+        _currencyConfigList = currencyConfigList.Value;
+
+        foreach (var config in _currencyConfigList)
+        {
+            config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
+        }
+    }
 
     public CurrencyConfig GetCurrencyConfig(string Symbol)
     {
         _logger.LogDebug("Retrieving config for currency: {Symbol}", Symbol);
 
-        var config = _currencyConfigList.CurrencyConfigs
-            .FirstOrDefault(c => c.Symbol.Equals(Symbol, StringComparison.OrdinalIgnoreCase));
+        var config = _currencyConfigList.FirstOrDefault(c => c.Symbol.Equals(Symbol, StringComparison.OrdinalIgnoreCase));
+
+        _logger.LogDebug("Config for {Symbol} found: {Config}", Symbol, config);
 
         if (config is null)
         {
             _logger.LogError("Currency config for {Symbol} not found.", Symbol);
-            throw new InvalidOperationException("CurrencyConfigs section is not configured properly.");
+            throw new InvalidOperationException($"Currency config for {Symbol} not found.");
         }
-
-        config.Confirmations = config.Confirmations.OrderBy(c => c.Amount).ToList();
 
         return config;
     }
