@@ -1,9 +1,8 @@
 using CryptoHook.Api.Models.Payments;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Numerics;
 
-namespace CryptoHook.Api.Managers;
+namespace CryptoHook.Api.Data;
 
 public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbContext(options)
 {
@@ -17,6 +16,11 @@ public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbCont
         {
             entity.HasIndex(e => e.Id)
                 .IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => Guid.Parse(v));
 
             entity.HasIndex(e => e.CurrencySymbol);
 

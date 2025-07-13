@@ -1,10 +1,9 @@
 using System.Numerics;
-using CryptoHook.Api.Managers;
-using CryptoHook.Api.Managers.CryptoManager;
 using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
+using CryptoHook.Api.Services.CryptoServices;
+using CryptoHook.Api.Data;
 
 namespace CryptoHook.Api.Controllers;
 
@@ -19,7 +18,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
 
     [HttpGet]
     [Route("{id}")]
-    public async Task<ActionResult<PaymentRequest>> GetPaymentRequest(Guid id)
+    public async Task<ActionResult<PaymentRequest>> GetPaymentRequest([FromRoute] Guid id)
     {
         _logger.LogInformation("Fetching payment request with ID: {Id}", id);
 
@@ -45,7 +44,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
 
     [HttpPost]
     [Route("{symbol}/{amount}")]
-    public ActionResult<PaymentRequest> CreatePaymentRequest(string symbol, BigInteger amount)
+    public async Task<ActionResult<PaymentRequest>> CreatePaymentRequest(string symbol, BigInteger amount)
     {
         _logger.LogInformation("Symbol: {Symbol}, Amount: {Amount}", symbol, amount);
 
@@ -61,7 +60,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             return BadRequest("Amount is required to be greater than zero");
         }
 
-        var cryptoManager = _serviceProvider.GetKeyedService<ICryptoManager>(symbol.ToUpperInvariant());
+        var cryptoManager = _serviceProvider.GetKeyedService<ICryptoService>(symbol.ToUpperInvariant());
 
         if (cryptoManager == null)
         {
@@ -69,7 +68,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             return BadRequest($"Cryptocurrency '{symbol}' is not supported");
         }
 
-        using var transaction = _databaseContext.Database.BeginTransaction();
+        using var transaction = await _databaseContext.Database.BeginTransactionAsync();
 
         try
         {
@@ -93,13 +92,13 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
                 TransactionId = null,
             };
 
-            _databaseContext.PaymentRequests.Add(paymentRequest);
-            _databaseContext.SaveChanges();
+            await _databaseContext.PaymentRequests.AddAsync(paymentRequest);
+            await _databaseContext.SaveChangesAsync();
 
             paymentRequest.ReceivingAddress = cryptoManager.GetAddressAtIndex((uint)paymentRequest.DerivationIndex);
-            _databaseContext.SaveChanges();
+            await _databaseContext.SaveChangesAsync();
 
-            transaction.Commit();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Created payment request {Id} with address {Address} at derivation index {Index}",
                 paymentRequest.Id, paymentRequest.ReceivingAddress, paymentRequest.DerivationIndex);
@@ -112,5 +111,31 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             _logger.LogError(ex, "Failed to create payment request for symbol {Symbol} and amount {Amount}", symbol, amount);
             return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while creating the payment request");
         }
+    }
+
+    [HttpGet("test-check/{id}")]
+    public async Task<ActionResult<PaymentCheckResult>> TestCheckPayment([FromRoute] Guid id)
+    {
+        _logger.LogInformation("Testing payment check for ID: {Id}", id);
+
+        var paymentRequest = await _databaseContext.PaymentRequests.FindAsync(id);
+
+        if (paymentRequest == null)
+        {
+            _logger.LogWarning("Payment request with ID {Id} not found for testing", id);
+            return NotFound($"Payment request with ID '{id}' not found");
+        }
+
+        var cryptoManager = _serviceProvider.GetKeyedService<ICryptoService>(paymentRequest.CurrencySymbol);
+
+        if (cryptoManager == null)
+        {
+            _logger.LogWarning("Unsupported cryptocurrency symbol: {Symbol}", paymentRequest.CurrencySymbol);
+            return BadRequest($"Cryptocurrency '{paymentRequest.CurrencySymbol}' is not supported");
+        }
+
+        var result = await cryptoManager.CheckTransactionStatus(paymentRequest);
+
+        return Ok(result);
     }
 }

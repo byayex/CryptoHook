@@ -1,9 +1,9 @@
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
 
-namespace CryptoHook.Api.Managers.CryptoManager;
+namespace CryptoHook.Api.Services.CryptoServices;
 
-public interface ICryptoManager
+public interface ICryptoService
 {
     string GetAddressAtIndex(uint index);
     Task<PaymentCheckResult> CheckTransactionStatus(PaymentRequest request);

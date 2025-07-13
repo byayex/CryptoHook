@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Numerics;
 using CryptoHook.Api.Models.Attributes;
+using CryptoHook.Api.Models.Consts;
 
 namespace CryptoHook.Api.Models.Configs;
 
@@ -24,6 +25,13 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
                 results.Add(new ValidationResult(result.ErrorMessage, memberNames));
             }
 
+            if (!AvailableCurrencies.Currencies.Any(c => c.Symbol == config.Symbol && c.Network == config.Network))
+            {
+                results.Add(new ValidationResult($"CurrencyConfigs[{i}].Symbol and CurrencyConfigs[{i}].Network combination is not supported.", new[] { $"[{i}].Symbol", $"[{i}].Network" }));
+            }
+
+
+
             if (config.Confirmations is null || config.Confirmations.Count == 0)
             {
                 results.Add(new ValidationResult($"CurrencyConfigs[{i}].Confirmations must not be empty."));
@@ -43,6 +51,15 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
                     results.Add(new ValidationResult($"CurrencyConfigs[{i}].Confirmations must have unique Amount values."));
                 }
             }
+        }
+
+        var duplicateCombinations = this.GroupBy(c => new { c.Symbol, c.Network })
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key);
+
+        foreach (var combo in duplicateCombinations)
+        {
+            results.Add(new ValidationResult($"The combination of Symbol '{combo.Symbol}' and Network '{combo.Network}' must be unique.", new[] { "Symbol", "Network" }));
         }
 
         return results;

@@ -46,7 +46,8 @@
             "esbenp.prettier-vscode",
             "streetsidesoftware.code-spell-checker",
             "ms-dotnettools.csharp",
-            "ms-dotnettools.csdevkit"
+            "ms-dotnettools.csdevkit",
+            "humao.rest-client"
         ]
     }
 }

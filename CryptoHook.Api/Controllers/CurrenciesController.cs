@@ -14,15 +14,20 @@ public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, I
     private readonly ILogger<CurrenciesController> _logger = logger;
 
     [HttpGet]
-    public ActionResult<Dictionary<string, string>> GetAvailableCurrencies()
+    public ActionResult<List<AvailableCurrency>> GetAvailableCurrencies()
     {
         try
         {
             _logger.LogInformation("Retrieving available currencies");
 
             var availableCurrencies = AvailableCurrencies.Currencies
-                .Where(kv => _currencyConfig.Any(c => c.Symbol == kv.Key && c.IsEnabled))
-                .ToDictionary(kv => kv.Key, kv => kv.Value);
+                .Where(c => _currencyConfig.Any(cc => cc.Symbol == c.Symbol && cc.IsEnabled))
+                .Select(c => new AvailableCurrency
+                {
+                    Symbol = c.Symbol,
+                    Name = c.Name,
+                    Network = c.Network
+                }).ToList();
 
             _logger.LogInformation("Successfully retrieved {Count} available currencies", availableCurrencies.Count);
 

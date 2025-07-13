@@ -1,6 +1,9 @@
+using CryptoHook.Api.Data;
 using CryptoHook.Api.Managers;
-using CryptoHook.Api.Managers.CryptoManager;
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Payments;
+using CryptoHook.Api.Services;
+using CryptoHook.Api.Services.CryptoServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,7 +31,9 @@ builder.Services.AddOptions<CurrencyConfigList>()
 
 builder.Services.AddSingleton<ConfigManager>();
 
-builder.Services.AddKeyedSingleton<ICryptoManager, BitcoinManager>("BTC");
+builder.Services.AddKeyedSingleton<ICryptoService, BitcoinService>("BTC");
+
+builder.Services.AddHostedService<PaymentCheckWorker>();
 
 builder.Services.AddDbContext<DatabaseContext>(options =>
     options.UseSqlite("Data Source=CryptoHook.db"));

@@ -6,27 +6,35 @@ namespace CryptoHook.Api.Models.Attributes;
 
 public class ValidCurrencyAttribute : ValidationAttribute
 {
-    public override bool IsValid(object? value)
+    protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
         if (value is not CurrencyConfig config)
-            return false;
+        {
+            return new ValidationResult("The configuration must be of type CurrencyConfig.");
+        }
 
-        if (!AvailableCurrencies.Currencies.ContainsKey(config.Symbol))
-            return false;
+        var availableCurrency = AvailableCurrencies.Currencies
+            .FirstOrDefault(c => c.Symbol == config.Symbol && c.Network == config.Network);
 
-        AvailableCurrencies.Currencies.TryGetValue(config.Symbol, out var currencyName);
-        if (string.IsNullOrWhiteSpace(currencyName))
-            return false;
+        if (availableCurrency == null)
+        {
+            return new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
+        }
 
-        return AvailableCurrencies.Currencies[config.Symbol] == config.Name;
+        if (availableCurrency.Name != config.Name)
+        {
+            return new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
+        }
+
+        return ValidationResult.Success;
     }
 
     public override string FormatErrorMessage(string name)
     {
         var availablePairs = AvailableCurrencies.Currencies
-            .Select(kvp => $"{kvp.Key} ({kvp.Value})")
+            .Select(c => $"'{c.Symbol}' ('{c.Name}') on network '{c.Network}'")
             .ToList();
 
-        return $"The currency Name and Symbol must be a valid combination. Available pairs: {string.Join(", ", availablePairs)}";
+        return $"The currency must be a valid combination of Name, Symbol and Network. Supported combinations are: {string.Join(", ", availablePairs)}";
     }
 }

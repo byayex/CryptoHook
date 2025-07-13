@@ -1,16 +1,17 @@
 using System.Numerics;
+using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
 using NBitcoin;
 
-namespace CryptoHook.Api.Managers.CryptoManager;
+namespace CryptoHook.Api.Services.CryptoServices;
 
-public class BitcoinManager : ICryptoManager
+public class BitcoinService : ICryptoService
 {
     private readonly ExtPubKey _extPubKey;
     private readonly Network _network;
-    private readonly ILogger<BitcoinManager> _logger;
+    private readonly ILogger<BitcoinService> _logger;
     private readonly HttpClient _httpClient;
     public CurrencyConfig CurrencyConfig { get; }
     public string Symbol => "BTC";
@@ -18,7 +19,7 @@ public class BitcoinManager : ICryptoManager
     // BIP84 derivation path for native SegWit addresses: m/0/index
     private const string DerivationPathFormat = "0/{0}";
 
-    public BitcoinManager(ConfigManager configManager, ILogger<BitcoinManager> logger)
+    public BitcoinService(ConfigManager configManager, ILogger<BitcoinService> logger)
     {
         _logger = logger;
         _httpClient = new HttpClient();
@@ -168,17 +169,91 @@ public class BitcoinManager : ICryptoManager
 
     private async Task<List<Transaction>> GetTransactionsAsync(string address)
     {
-        // Placeholder for actual implementation to fetch transactions from a Bitcoin node or API
-        // This should return a list of transactions associated with the given address
         _logger.LogDebug("Fetching transactions for address {Address} in {Symbol}", address, Symbol);
-        return await Task.FromResult(new List<Transaction>());
+
+        var apiBaseUrl = _network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
+        var txsUrl = $"{apiBaseUrl}/address/{address}/txs";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(txsUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Could not fetch transactions for {Address}. Status: {StatusCode}", address, response.StatusCode);
+                return new List<Transaction>();
+            }
+
+            var txsJson = await response.Content.ReadAsStringAsync();
+            using var jsonDoc = System.Text.Json.JsonDocument.Parse(txsJson);
+            var txIds = jsonDoc.RootElement.EnumerateArray()
+                .Select(tx => tx.GetProperty("txid").GetString())
+                .Where(id => !string.IsNullOrEmpty(id))
+                .ToList();
+
+            if (!txIds.Any())
+            {
+                return new List<Transaction>();
+            }
+
+            var transactions = new List<Transaction>();
+            foreach (var txId in txIds)
+            {
+                try
+                {
+                    var txHex = await _httpClient.GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
+                    transactions.Add(Transaction.Parse(txHex, _network));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to process transaction {TxId} for address {Address}", txId, address);
+                }
+            }
+
+            return transactions;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while fetching transactions for address {Address}", address);
+            return new List<Transaction>();
+        }
     }
 
     private async Task<uint> GetConfirmationsAsync(string txId)
     {
-        // Placeholder for actual implementation to get the number of confirmations for a transaction
-        // This should return the number of confirmations for the given transaction ID
         _logger.LogDebug("Fetching confirmations for transaction {TxId} in {Symbol}", txId, Symbol);
-        return await Task.FromResult(0u);
+        var apiBaseUrl = _network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
+
+        try
+        {
+            var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
+            var response = await _httpClient.GetAsync(txStatusUrl);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Could not fetch transaction status for {TxId}. Status: {StatusCode}", txId, response.StatusCode);
+                return 0;
+            }
+
+            var txStatusJson = await response.Content.ReadAsStringAsync();
+            using var statusDoc = System.Text.Json.JsonDocument.Parse(txStatusJson);
+
+            if (!statusDoc.RootElement.GetProperty("confirmed").GetBoolean())
+            {
+                return 0;
+            }
+
+            var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
+
+            var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
+            var currentHeightStr = await _httpClient.GetStringAsync(tipHeightUrl);
+            var currentHeight = uint.Parse(currentHeightStr);
+
+            return currentHeight - txBlockHeight + 1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while fetching confirmations for transaction {TxId}", txId);
+            return 0;
+        }
     }
 }
