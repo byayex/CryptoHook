@@ -29,13 +29,25 @@ builder.Services.AddOptions<CurrencyConfigList>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<CurrencyConfigList>()
+    .Bind(builder.Configuration.GetSection("CurrencyConfigs"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<WebhookConfigList>()
+    .Bind(builder.Configuration.GetSection("Webhooks"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddSingleton<ConfigManager>();
 
 builder.Services.AddKeyedSingleton<ICryptoService, BitcoinService>("BTC");
 
+builder.Services.AddScoped<IWebhookService, WebhookService>();
+
 builder.Services.AddHostedService<PaymentCheckWorker>();
 
-builder.Services.AddDbContext<DatabaseContext>(options =>
+builder.Services.AddDbContextFactory<DatabaseContext>(options =>
     options.UseSqlite("Data Source=CryptoHook.db"));
 
 var app = builder.Build();

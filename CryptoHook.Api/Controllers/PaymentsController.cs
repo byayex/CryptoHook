@@ -112,30 +112,4 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while creating the payment request");
         }
     }
-
-    [HttpGet("test-check/{id}")]
-    public async Task<ActionResult<PaymentCheckResult>> TestCheckPayment([FromRoute] Guid id)
-    {
-        _logger.LogInformation("Testing payment check for ID: {Id}", id);
-
-        var paymentRequest = await _databaseContext.PaymentRequests.FindAsync(id);
-
-        if (paymentRequest == null)
-        {
-            _logger.LogWarning("Payment request with ID {Id} not found for testing", id);
-            return NotFound($"Payment request with ID '{id}' not found");
-        }
-
-        var cryptoManager = _serviceProvider.GetKeyedService<ICryptoService>(paymentRequest.CurrencySymbol);
-
-        if (cryptoManager == null)
-        {
-            _logger.LogWarning("Unsupported cryptocurrency symbol: {Symbol}", paymentRequest.CurrencySymbol);
-            return BadRequest($"Cryptocurrency '{paymentRequest.CurrencySymbol}' is not supported");
-        }
-
-        var result = await cryptoManager.CheckTransactionStatus(paymentRequest);
-
-        return Ok(result);
-    }
 }

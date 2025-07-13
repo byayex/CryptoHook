@@ -9,5 +9,5 @@ POST http://localhost:5116/api/v1/payments/BTC/100000000
 ###
 
 # Request to get a specific payment request by ID
-GET http://localhost:5116/api/v1/payments/9ee00ca1-9168-4d8a-bcca-8470449cbafc
+GET http://localhost:5116/api/v1/payments/4f81501e-519b-4764-b031-d9b7c7139828
 

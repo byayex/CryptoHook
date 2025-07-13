@@ -16,6 +16,7 @@ A simple, self-hosted, open-source cryptocurrency payment processor.
 - Its important that if someone starts using this he HAS to use a new hd wallet because we just start at 0
 - We use BigInteger and this has to be respected on the system the receives the api (mostly frontend)
 - Use WebHooks to push payment updates.
+  - The WebHook will have the "X-Signature" header which will contains the secret for validation
 
 ## Bitcoin
 

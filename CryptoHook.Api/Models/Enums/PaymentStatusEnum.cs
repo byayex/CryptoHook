@@ -36,7 +36,7 @@ public enum PaymentStatusEnum
     Confirmed,
 
     /// <summary>
-    /// The payment request was not completed before its expiration time.
+    /// The payment request was not initiated before its expiration time.
     /// </summary>
     Expired
 }
