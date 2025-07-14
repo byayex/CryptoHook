@@ -1,7 +1,6 @@
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
-using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Services;
 using CryptoHook.Api.Services.CryptoServices;
 using Microsoft.AspNetCore.Mvc;

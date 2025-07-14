@@ -11,7 +11,7 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
     private readonly WebhookConfigList _webhookConfigs = webhookConfigs.Value;
     private readonly ILogger<WebhookService> _logger = logger;
 
-    public async Task NotifyPaymentChange(string paymentId, PaymentCheckResult result)
+    public async Task NotifyPaymentChange(Guid paymentId, PaymentCheckResult result)
     {
         if (_webhookConfigs is null || _webhookConfigs.Count == 0)
         {

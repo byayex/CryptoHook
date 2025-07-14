@@ -12,17 +12,17 @@ public class BitcoinService : ICryptoService
     private readonly ExtPubKey _extPubKey;
     private readonly Network _network;
     private readonly ILogger<BitcoinService> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     public CurrencyConfig CurrencyConfig { get; }
     public string Symbol => "BTC";
 
     // BIP84 derivation path for native SegWit addresses: m/0/index
     private const string DerivationPathFormat = "0/{0}";
 
-    public BitcoinService(ConfigManager configManager, ILogger<BitcoinService> logger)
+    public BitcoinService(ConfigManager configManager, ILogger<BitcoinService> logger, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
-        _httpClient = new HttpClient();
+        _httpClientFactory = httpClientFactory;
 
         _logger.LogInformation("Initializing BitcoinManager for {Symbol}", Symbol);
 
@@ -176,7 +176,7 @@ public class BitcoinService : ICryptoService
 
         try
         {
-            var response = await _httpClient.GetAsync(txsUrl);
+            var response = await _httpClientFactory.CreateClient().GetAsync(txsUrl);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Could not fetch transactions for {Address}. Status: {StatusCode}", address, response.StatusCode);
@@ -190,9 +190,9 @@ public class BitcoinService : ICryptoService
                 .Where(id => !string.IsNullOrEmpty(id))
                 .ToList();
 
-            if (!txIds.Any())
+            if (txIds.Count == 0)
             {
-                return new List<Transaction>();
+                return [];
             }
 
             var transactions = new List<Transaction>();
@@ -200,7 +200,7 @@ public class BitcoinService : ICryptoService
             {
                 try
                 {
-                    var txHex = await _httpClient.GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
+                    var txHex = await _httpClientFactory.CreateClient().GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
                     transactions.Add(Transaction.Parse(txHex, _network));
                 }
                 catch (Exception ex)
@@ -214,7 +214,7 @@ public class BitcoinService : ICryptoService
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while fetching transactions for address {Address}", address);
-            return new List<Transaction>();
+            return [];
         }
     }
 
@@ -226,7 +226,7 @@ public class BitcoinService : ICryptoService
         try
         {
             var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
-            var response = await _httpClient.GetAsync(txStatusUrl);
+            var response = await _httpClientFactory.CreateClient().GetAsync(txStatusUrl);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -245,7 +245,7 @@ public class BitcoinService : ICryptoService
             var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
 
             var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
-            var currentHeightStr = await _httpClient.GetStringAsync(tipHeightUrl);
+            var currentHeightStr = await _httpClientFactory.CreateClient().GetStringAsync(tipHeightUrl);
             var currentHeight = uint.Parse(currentHeightStr);
 
             return currentHeight - txBlockHeight + 1;

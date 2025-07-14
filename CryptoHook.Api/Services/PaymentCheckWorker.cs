@@ -82,6 +82,11 @@ public class PaymentCheckWorker(
 
                 if (result.Status != request.Status)
                 {
+                    var webhookService = scope.ServiceProvider.GetService<IWebhookService>();
+                    if (webhookService is not null)
+                    {
+                        await webhookService.NotifyPaymentChange(request.Id, result);
+                    }
                     _logger.LogInformation("Payment {PaymentId} status changed from {OldStatus} to {NewStatus}", request.Id, request.Status, result.Status);
                     request.Status = result.Status;
                     request.AmountPaid = result.AmountDetected;
