@@ -24,7 +24,7 @@ public class DatabaseContext(DbContextOptions<DatabaseContext> options) : DbCont
 
             entity.HasIndex(e => e.CurrencySymbol);
 
-            entity.Property(e => e.ExpectedAmount)
+            entity.Property(e => e.AmountExpected)
                 .HasConversion(
                     v => v.ToString(),
                     v => BigInteger.Parse(v)

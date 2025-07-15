@@ -5,8 +5,10 @@ using System.Threading.Tasks;
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
+using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Services.CryptoServices;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -85,7 +87,17 @@ public class PaymentCheckWorker(
                     var webhookService = scope.ServiceProvider.GetService<IWebhookService>();
                     if (webhookService is not null)
                     {
-                        await webhookService.NotifyPaymentChange(request.Id, result);
+                        var WebhookPayload = new PaymentWebhookPayload
+                        {
+                            PaymentId = request.Id,
+                            Status = result.Status.ToString(),
+                            AmountDetected = result.AmountDetected,
+                            AmountExpected = request.AmountExpected,
+                            Confirmations = result.Confirmations,
+                            TransactionId = result.TransactionId,
+                            Timestamp = DateTime.UtcNow
+                        };
+                        await webhookService.NotifyPaymentChange(WebhookPayload);
                     }
                     _logger.LogInformation("Payment {PaymentId} status changed from {OldStatus} to {NewStatus}", request.Id, request.Status, result.Status);
                     request.Status = result.Status;

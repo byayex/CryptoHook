@@ -83,7 +83,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
                 Id = Guid.NewGuid(),
                 DerivationIndex = nextDerivationIndex,
                 Status = PaymentStatusEnum.Pending,
-                ExpectedAmount = amount,
+                AmountExpected = amount,
                 AmountPaid = BigInteger.Zero,
                 CurrencySymbol = symbol.ToUpperInvariant(),
                 ReceivingAddress = "",

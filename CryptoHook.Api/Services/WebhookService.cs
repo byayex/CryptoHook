@@ -11,24 +11,14 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
     private readonly WebhookConfigList _webhookConfigs = webhookConfigs.Value;
     private readonly ILogger<WebhookService> _logger = logger;
 
-    public async Task NotifyPaymentChange(Guid paymentId, PaymentCheckResult result)
+    public async Task NotifyPaymentChange(PaymentWebhookPayload payload)
     {
         if (_webhookConfigs is null || _webhookConfigs.Count == 0)
         {
             return;
         }
 
-        _logger.LogInformation("Notifying webhooks for payment {PaymentId} with status {Status}", paymentId, result.Status);
-
-        var payload = new
-        {
-            PaymentId = paymentId,
-            Status = result.Status.ToString(),
-            AmountDetected = result.AmountDetected.ToString(),
-            Confirmations = result.Confirmations,
-            TransactionId = result.TransactionId,
-            Timestamp = DateTime.UtcNow
-        };
+        _logger.LogInformation("Notifying webhooks for payment {PaymentId} with status {Status}", payload.PaymentId, payload.Status);
 
         var jsonPayload = JsonSerializer.Serialize(payload);
 

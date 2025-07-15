@@ -34,7 +34,7 @@ public class PaymentRequest
     /// </summary>
     [Required]
     [JsonConverter(typeof(BigIntegerStringConverter))]
-    public required BigInteger ExpectedAmount { get; set; }
+    public required BigInteger AmountExpected { get; set; }
 
     /// <summary>
     /// Gets or sets the total amount of currency that has been paid towards this request so far.
