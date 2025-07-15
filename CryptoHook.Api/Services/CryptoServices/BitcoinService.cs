@@ -19,30 +19,27 @@ public class BitcoinService : ICryptoService
     // BIP84 derivation path for native SegWit addresses: m/0/index
     private const string DerivationPathFormat = "0/{0}";
 
-    public BitcoinService(ConfigManager configManager, ILogger<BitcoinService> logger, IHttpClientFactory httpClientFactory)
+    public BitcoinService(CurrencyConfig currencyConfig, ILogger<BitcoinService> logger, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _httpClientFactory = httpClientFactory;
 
         _logger.LogInformation("Initializing BitcoinManager for {Symbol}", Symbol);
 
-        var config = configManager.GetCurrencyConfig(Symbol);
-        _logger.LogDebug("Retrieved config for {Symbol}: Network={Network}", Symbol, config.Network);
-
-        var network = Network.GetNetwork(config.Network);
+        var network = Network.GetNetwork(currencyConfig.Network);
 
         if (network is null)
         {
-            _logger.LogError("Network for {Symbol} is not configured properly. Network value: {NetworkValue}", Symbol, config.Network);
+            _logger.LogError("Network for {Symbol} is not configured properly. Network value: {NetworkValue}", Symbol, currencyConfig.Network);
             throw new InvalidOperationException($"Network for {Symbol} is not configured properly.");
         }
 
         _network = network;
-        CurrencyConfig = config;
+        CurrencyConfig = currencyConfig;
 
         try
         {
-            _extPubKey = ExtPubKey.Parse(config.ExtPubKey, _network);
+            _extPubKey = ExtPubKey.Parse(currencyConfig.ExtPubKey, _network);
             _logger.LogInformation("Successfully initialized BitcoinManager for {Symbol} on {Network}", Symbol, _network.Name);
         }
         catch (Exception ex)

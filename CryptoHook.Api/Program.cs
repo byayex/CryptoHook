@@ -3,6 +3,7 @@ using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Services;
 using CryptoHook.Api.Services.CryptoServices;
+using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,9 +36,9 @@ builder.Services.AddOptions<WebhookConfigList>()
 
 builder.Services.AddSingleton<ConfigManager>();
 
-builder.Services.AddKeyedSingleton<ICryptoService, BitcoinService>("BTC");
+builder.Services.AddSingleton<IWebhookService, WebhookService>();
 
-builder.Services.AddScoped<IWebhookService, WebhookService>();
+builder.Services.AddSingleton<ICryptoServiceFactory, CryptoServiceFactory>();
 
 builder.Services.AddHostedService<PaymentCheckWorker>();
 

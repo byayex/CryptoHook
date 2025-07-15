@@ -1,3 +1,4 @@
+using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Consts;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +9,9 @@ namespace CryptoHook.Api.Controllers;
 [ApiController]
 [Route("api/v{version:apiVersion}/currencies")]
 [ApiVersion("1.0")]
-public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, ILogger<CurrenciesController> logger) : ControllerBase
+public class CurrenciesController(ConfigManager configManager, ILogger<CurrenciesController> logger) : ControllerBase
 {
-    private readonly CurrencyConfigList _currencyConfig = currencyConfig.Value;
+    private readonly ConfigManager _configManager = configManager;
     private readonly ILogger<CurrenciesController> _logger = logger;
 
     [HttpGet]
@@ -20,14 +21,7 @@ public class CurrenciesController(IOptions<CurrencyConfigList> currencyConfig, I
         {
             _logger.LogInformation("Retrieving available currencies");
 
-            var availableCurrencies = AvailableCurrencies.Currencies
-                .Where(c => _currencyConfig.Any(cc => cc.Symbol == c.Symbol && cc.IsEnabled))
-                .Select(c => new AvailableCurrency
-                {
-                    Symbol = c.Symbol,
-                    Name = c.Name,
-                    Network = c.Network
-                }).ToList();
+            var availableCurrencies = _configManager.GetAvailableCurrencies();
 
             _logger.LogInformation("Successfully retrieved {Count} available currencies", availableCurrencies.Count);
 

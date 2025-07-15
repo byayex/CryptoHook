@@ -3,25 +3,24 @@ namespace CryptoHook.Api.Services;
 using System.Threading;
 using System.Threading.Tasks;
 using CryptoHook.Api.Data;
-using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
-using CryptoHook.Api.Services.CryptoServices;
+using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 public class PaymentCheckWorker(
     ILogger<PaymentCheckWorker> logger,
     IDbContextFactory<DatabaseContext> dbContextFactory,
-    IServiceProvider serviceProvider) : BackgroundService
+    ICryptoServiceFactory cryptoServiceFactory,
+    IWebhookService webhookService) : BackgroundService
 {
     private readonly ILogger<PaymentCheckWorker> _logger = logger;
     private readonly IDbContextFactory<DatabaseContext> _dbContextFactory = dbContextFactory;
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly ICryptoServiceFactory _cryptoServiceFactory = cryptoServiceFactory;
+    private readonly IWebhookService _webhookService = webhookService;
     private readonly int _checkInterval = 15; // Default check interval in seconds
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -60,20 +59,19 @@ public class PaymentCheckWorker(
             return;
         }
 
-        using var scope = _serviceProvider.CreateScope();
-        var paymentsByCurrency = paymentsToCheck.GroupBy(p => p.CurrencySymbol);
+        var paymentsByCurrencyAndNetwork = paymentsToCheck.GroupBy(p => new { p.CurrencySymbol, p.Network });
 
-        foreach (var group in paymentsByCurrency)
+        foreach (var group in paymentsByCurrencyAndNetwork)
         {
-            var cryptoService = scope.ServiceProvider.GetKeyedService<ICryptoService>(group.Key);
+            var cryptoService = _cryptoServiceFactory.GetService(group.Key.CurrencySymbol, group.Key.Network);
 
             if (cryptoService is null)
             {
-                _logger.LogError("No crypto service found for currency {CurrencySymbol}", group.Key);
+                _logger.LogError("No crypto service found for currency {CurrencySymbol} on network {Network}", group.Key.CurrencySymbol, group.Key.Network);
                 continue;
             }
 
-            _logger.LogInformation("Checking {Count} payments for {CurrencySymbol}", group.Count(), group.Key);
+            _logger.LogInformation("Checking {Count} payments for {CurrencySymbol} on {Network}", group.Count(), group.Key.CurrencySymbol, group.Key.Network);
 
             foreach (var request in group)
             {
@@ -84,21 +82,18 @@ public class PaymentCheckWorker(
 
                 if (result.Status != request.Status)
                 {
-                    var webhookService = scope.ServiceProvider.GetService<IWebhookService>();
-                    if (webhookService is not null)
+                    var WebhookPayload = new PaymentWebhookPayload
                     {
-                        var WebhookPayload = new PaymentWebhookPayload
-                        {
-                            PaymentId = request.Id,
-                            Status = result.Status.ToString(),
-                            AmountDetected = result.AmountDetected,
-                            AmountExpected = request.AmountExpected,
-                            Confirmations = result.Confirmations,
-                            TransactionId = result.TransactionId,
-                            Timestamp = DateTime.UtcNow
-                        };
-                        await webhookService.NotifyPaymentChange(WebhookPayload);
-                    }
+                        PaymentId = request.Id,
+                        Status = result.Status.ToString(),
+                        AmountDetected = result.AmountDetected,
+                        AmountExpected = request.AmountExpected,
+                        Confirmations = result.Confirmations,
+                        TransactionId = result.TransactionId,
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await _webhookService.NotifyPaymentChange(WebhookPayload);
+
                     _logger.LogInformation("Payment {PaymentId} status changed from {OldStatus} to {NewStatus}", request.Id, request.Status, result.Status);
                     request.Status = result.Status;
                     request.AmountPaid = result.AmountDetected;

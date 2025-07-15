@@ -1,4 +1,5 @@
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Consts;
 using Microsoft.Extensions.Options;
 
 namespace CryptoHook.Api.Managers;
@@ -19,20 +20,34 @@ public class ConfigManager
         }
     }
 
-    public CurrencyConfig GetCurrencyConfig(string Symbol)
+    public CurrencyConfig GetCurrencyConfig(string symbol, string network)
     {
-        _logger.LogDebug("Retrieving config for currency: {Symbol}", Symbol);
+        _logger.LogDebug("Retrieving config for currency: {Symbol} and network: {Network}", symbol, network);
 
-        var config = _currencyConfigList.FirstOrDefault(c => c.Symbol.Equals(Symbol, StringComparison.OrdinalIgnoreCase));
+        var config = _currencyConfigList.FirstOrDefault(c =>
+            c.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase)
+            && c.Network.Equals(network, StringComparison.OrdinalIgnoreCase));
 
-        _logger.LogDebug("Config for {Symbol} found: {Config}", Symbol, config);
+        _logger.LogDebug("Config for {Symbol} ({Network}) found: {Config}", symbol, network, config);
 
         if (config is null)
         {
-            _logger.LogError("Currency config for {Symbol} not found.", Symbol);
-            throw new InvalidOperationException($"Currency config for {Symbol} not found.");
+            _logger.LogError("Currency config for {Symbol} with Network {Network} not found.", symbol, network);
+            throw new InvalidOperationException($"Currency config for {symbol} in Network {network} not found.");
         }
 
         return config;
+    }
+
+    public List<AvailableCurrency> GetAvailableCurrencies()
+    {
+        return AvailableCurrencies.Currencies
+            .Where(c => _currencyConfigList.Any(cc => cc.Symbol == c.Symbol && cc.IsEnabled))
+            .Select(c => new AvailableCurrency
+            {
+                Symbol = c.Symbol,
+                Name = c.Name,
+                Network = c.Network
+            }).ToList();
     }
 }

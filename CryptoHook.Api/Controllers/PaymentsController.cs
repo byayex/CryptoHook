@@ -4,17 +4,18 @@ using CryptoHook.Api.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
 using CryptoHook.Api.Services.CryptoServices;
 using CryptoHook.Api.Data;
+using CryptoHook.Api.Services.CryptoServices.Factory;
 
 namespace CryptoHook.Api.Controllers;
 
 [ApiController]
 [Route("api/v{version:apiVersion}/payments")]
 [ApiVersion("1.0")]
-public class PaymentController(ILogger<PaymentController> logger, DatabaseContext databaseContext, IServiceProvider serviceProvider) : ControllerBase
+public class PaymentController(ILogger<PaymentController> logger, DatabaseContext databaseContext, ICryptoServiceFactory cryptoServiceFactory) : ControllerBase
 {
     private readonly DatabaseContext _databaseContext = databaseContext;
+    private readonly ICryptoServiceFactory _cryptoServiceFactory = cryptoServiceFactory;
     private readonly ILogger<PaymentController> _logger = logger;
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
 
     [HttpGet]
     [Route("{id}")]
@@ -43,10 +44,10 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
     }
 
     [HttpPost]
-    [Route("{symbol}/{amount}")]
-    public async Task<ActionResult<PaymentRequest>> CreatePaymentRequest(string symbol, BigInteger amount)
+    [Route("{symbol}/{network}/{amount}")]
+    public async Task<ActionResult<PaymentRequest>> CreatePaymentRequest(string symbol, string network, BigInteger amount)
     {
-        _logger.LogInformation("Symbol: {Symbol}, Amount: {Amount}", symbol, amount);
+        _logger.LogInformation("Creating payment request - Symbol: {Symbol}, Network: {Network}, Amount: {Amount}", symbol, network, amount);
 
         if (string.IsNullOrWhiteSpace(symbol))
         {
@@ -56,16 +57,16 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
 
         if (amount <= 0)
         {
-            _logger.LogWarning("Invalid amount provided. Symbol: {Symbol}, Amount: {Amount}", symbol, amount);
+            _logger.LogWarning("Invalid amount provided. Symbol: {Symbol}, Network: {Network}, Amount: {Amount}", symbol, network, amount);
             return BadRequest("Amount is required to be greater than zero");
         }
 
-        var cryptoManager = _serviceProvider.GetKeyedService<ICryptoService>(symbol.ToUpperInvariant());
+        var cryptoManager = _cryptoServiceFactory.GetService(symbol, network);
 
         if (cryptoManager == null)
         {
-            _logger.LogWarning("Unsupported cryptocurrency symbol: {Symbol}", symbol);
-            return BadRequest($"Cryptocurrency '{symbol}' is not supported");
+            _logger.LogWarning("Unsupported cryptocurrency. Symbol: {Symbol}, Network: {Network}", symbol, network);
+            return BadRequest($"Cryptocurrency '{symbol}' on network '{network}' is not supported");
         }
 
         using var transaction = await _databaseContext.Database.BeginTransactionAsync();
@@ -85,7 +86,8 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
                 Status = PaymentStatusEnum.Pending,
                 AmountExpected = amount,
                 AmountPaid = BigInteger.Zero,
-                CurrencySymbol = symbol.ToUpperInvariant(),
+                Network = cryptoManager.CurrencyConfig.Network,
+                CurrencySymbol = cryptoManager.CurrencyConfig.Symbol,
                 ReceivingAddress = "",
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(cryptoManager.CurrencyConfig.InitialPaymentTimeout),
@@ -108,7 +110,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         catch (Exception ex)
         {
             transaction.Rollback();
-            _logger.LogError(ex, "Failed to create payment request for symbol {Symbol} and amount {Amount}", symbol, amount);
+            _logger.LogError(ex, "Failed to create payment request for symbol {Symbol}, network {Network}, and amount {Amount}", symbol, network, amount);
             return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while creating the payment request");
         }
     }

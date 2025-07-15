@@ -56,6 +56,12 @@ public class PaymentRequest
     public required string CurrencySymbol { get; set; }
 
     /// <summary>
+    /// Gets or sets the symbol that represents the network of the currency for this payment request (e.g., Main, Testnet).
+    /// </summary>
+    [Required]
+    public required string Network { get; set; }
+
+    /// <summary>
     /// Gets or sets the timestamp for when the payment request was created.
     /// </summary>
     [Required]
