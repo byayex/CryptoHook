@@ -28,11 +28,6 @@ builder.Services.AddOptions<CurrencyConfigList>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-builder.Services.AddOptions<CurrencyConfigList>()
-    .Bind(builder.Configuration.GetSection("CurrencyConfigs"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
 builder.Services.AddOptions<WebhookConfigList>()
     .Bind(builder.Configuration.GetSection("Webhooks"))
     .ValidateDataAnnotations()
@@ -48,6 +43,8 @@ builder.Services.AddHostedService<PaymentCheckWorker>();
 
 builder.Services.AddDbContextFactory<DatabaseContext>(options =>
     options.UseSqlite("Data Source=CryptoHook.db"));
+
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 

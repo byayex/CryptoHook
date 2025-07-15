@@ -11,7 +11,7 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
     {
         var results = new List<ValidationResult>();
 
-        for (int i = 0; i < this.Count; i++)
+        for (int i = 0; i < Count; i++)
         {
             var config = this[i];
             var context = new ValidationContext(config);
@@ -29,8 +29,6 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
             {
                 results.Add(new ValidationResult($"CurrencyConfigs[{i}].Symbol and CurrencyConfigs[{i}].Network combination is not supported.", new[] { $"[{i}].Symbol", $"[{i}].Network" }));
             }
-
-
 
             if (config.Confirmations is null || config.Confirmations.Count == 0)
             {

@@ -1,5 +1,4 @@
 using System.Numerics;
-using System.Text.Json.Serialization;
 
 namespace CryptoHook.Api.Models.Configs;
 
