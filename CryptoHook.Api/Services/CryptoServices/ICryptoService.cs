@@ -6,7 +6,7 @@ namespace CryptoHook.Api.Services.CryptoServices;
 public interface ICryptoService
 {
     string GetAddressAtIndex(uint index);
-    Task<PaymentCheckResult> CheckTransactionStatus(PaymentRequest request);
+    Task<PaymentRequest> CheckTransactionStatus(PaymentRequest request);
     string Symbol { get; }
     CurrencyConfig CurrencyConfig { get; }
 }

@@ -44,6 +44,18 @@ public class PaymentRequest
     public required BigInteger AmountPaid { get; set; }
 
     /// <summary>
+    /// Gets or sets the number of confirmations this transaction has received.
+    /// </summary>
+    [Required]
+    public required uint ConfirmationCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of confirmations this transaction needs to be considered completed.
+    /// </summary>
+    [Required]
+    public required uint ConfirmationNeeded { get; set; }
+
+    /// <summary>
     /// Gets or sets the unique cryptocurrency address generated for this specific payment request.
     /// </summary>
     [Required]
@@ -66,6 +78,12 @@ public class PaymentRequest
     /// </summary>
     [Required]
     public required DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timestamp indicating the last time this payment request was updated.
+    /// </summary>
+    [Required]
+    public required DateTime UpdatedAt { get; set; }
 
     /// <summary>
     /// Gets or sets the timestamp for when this payment request becomes invalid.

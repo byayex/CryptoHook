@@ -86,11 +86,14 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
                 Status = PaymentStatusEnum.Pending,
                 AmountExpected = amount,
                 AmountPaid = BigInteger.Zero,
+                ConfirmationCount = 0,
+                ConfirmationNeeded = cryptoManager.CurrencyConfig.GetConfirmationsNeeded(amount),
                 Network = cryptoManager.CurrencyConfig.Network,
                 CurrencySymbol = cryptoManager.CurrencyConfig.Symbol,
                 ReceivingAddress = "",
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddMinutes(cryptoManager.CurrencyConfig.InitialPaymentTimeout),
+                UpdatedAt = DateTime.UtcNow,
                 TransactionId = null,
             };
 

@@ -31,6 +31,12 @@ namespace CryptoHook.Api.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<uint>("ConfirmationCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<uint>("ConfirmationNeeded")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
@@ -56,6 +62,9 @@ namespace CryptoHook.Api.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TransactionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

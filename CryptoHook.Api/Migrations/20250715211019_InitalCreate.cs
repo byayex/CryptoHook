@@ -20,10 +20,13 @@ namespace CryptoHook.Api.Migrations
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     AmountExpected = table.Column<string>(type: "TEXT", nullable: false),
                     AmountPaid = table.Column<string>(type: "TEXT", nullable: false),
+                    ConfirmationCount = table.Column<uint>(type: "INTEGER", nullable: false),
+                    ConfirmationNeeded = table.Column<uint>(type: "INTEGER", nullable: false),
                     ReceivingAddress = table.Column<string>(type: "TEXT", nullable: false),
                     CurrencySymbol = table.Column<string>(type: "TEXT", nullable: false),
                     Network = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     ExpiresAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     TransactionId = table.Column<string>(type: "TEXT", nullable: true)
                 },

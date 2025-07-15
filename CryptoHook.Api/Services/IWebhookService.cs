@@ -4,5 +4,5 @@ namespace CryptoHook.Api.Services;
 
 public interface IWebhookService
 {
-    Task NotifyPaymentChange(PaymentWebhookPayload payload);
+    Task NotifyPaymentChange(PaymentRequest payload);
 }

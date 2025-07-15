@@ -82,21 +82,13 @@ public class PaymentCheckWorker(
 
                 if (result.Status != request.Status)
                 {
-                    var WebhookPayload = new PaymentWebhookPayload
-                    {
-                        PaymentId = request.Id,
-                        Status = result.Status.ToString(),
-                        AmountDetected = result.AmountDetected,
-                        AmountExpected = request.AmountExpected,
-                        Confirmations = result.Confirmations,
-                        TransactionId = result.TransactionId,
-                        Timestamp = DateTime.UtcNow
-                    };
-                    await _webhookService.NotifyPaymentChange(WebhookPayload);
+                    await _webhookService.NotifyPaymentChange(result);
 
                     _logger.LogInformation("Payment {PaymentId} status changed from {OldStatus} to {NewStatus}", request.Id, request.Status, result.Status);
                     request.Status = result.Status;
-                    request.AmountPaid = result.AmountDetected;
+                    request.AmountPaid = result.AmountPaid;
+                    request.ConfirmationCount = result.ConfirmationCount;
+                    request.UpdatedAt = DateTime.UtcNow;
                     request.TransactionId = result.TransactionId;
                 }
             }

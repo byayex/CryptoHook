@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CryptoHook.Api.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20250715203634_InitalCreate")]
+    [Migration("20250715211019_InitalCreate")]
     partial class InitalCreate
     {
         /// <inheritdoc />
@@ -33,6 +33,12 @@ namespace CryptoHook.Api.Migrations
                     b.Property<string>("AmountPaid")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<uint>("ConfirmationCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<uint>("ConfirmationNeeded")
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
@@ -59,6 +65,9 @@ namespace CryptoHook.Api.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TransactionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
