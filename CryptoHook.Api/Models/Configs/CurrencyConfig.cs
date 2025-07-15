@@ -31,7 +31,7 @@ public class CurrencyConfig
     /// Gets or sets the initial timeout in minutes for payment processing.
     /// </summary>
     [Required]
-    public required uint InitialPaymentTimeout { get; set; }
+    public required double InitialPaymentTimeout { get; set; }
 
     /// <summary>
     /// Gets or sets the extended public key (xpub) used for deriving wallet addresses.

@@ -79,7 +79,7 @@ public class BitcoinService : ICryptoService
     {
         _logger.LogInformation("Checking transaction status for {Symbol} at address {Address}", Symbol, request.ReceivingAddress);
 
-        var neededConfirmations = CurrencyConfig.GetConfirmationsNeeded(request.ExpectedAmount);
+        var neededConfirmations = CurrencyConfig.GetConfirmationsNeeded(request.AmountExpected);
         var transactions = await GetTransactionsAsync(request.ReceivingAddress);
 
         var paymentCheckResult = new PaymentCheckResult
@@ -134,20 +134,20 @@ public class BitcoinService : ICryptoService
 
         paymentCheckResult.Confirmations = await GetConfirmationsAsync(paymentCheckResult.TransactionId);
 
-        if (paymentCheckResult.AmountDetected < request.ExpectedAmount)
+        if (paymentCheckResult.AmountDetected < request.AmountExpected)
         {
             _logger.LogWarning("Payment for {Symbol} at {Address} is below expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
-                Symbol, request.ReceivingAddress, request.ExpectedAmount, paymentCheckResult.AmountDetected);
+                Symbol, request.ReceivingAddress, request.AmountExpected, paymentCheckResult.AmountDetected);
             paymentCheckResult.Status = PaymentStatusEnum.Underpaid;
             return paymentCheckResult;
         }
 
-        if (paymentCheckResult.AmountDetected > request.ExpectedAmount)
+        if (paymentCheckResult.AmountDetected > request.AmountExpected)
         {
             _logger.LogWarning("Payment for {Symbol} at {Address} is over expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
-                Symbol, request.ReceivingAddress, request.ExpectedAmount, paymentCheckResult.AmountDetected);
+                Symbol, request.ReceivingAddress, request.AmountExpected, paymentCheckResult.AmountDetected);
             paymentCheckResult.Status = PaymentStatusEnum.Overpaid;
             return paymentCheckResult;
         }
