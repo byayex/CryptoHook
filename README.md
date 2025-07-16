@@ -17,7 +17,7 @@ A simple, self-hosted, open-source cryptocurrency payment processor.
 - We use BigInteger and this has to be respected on the system the receives the api (mostly frontend)
 - Use WebHooks to push payment updates.
   - The WebHook will have the "X-Signature" header which will contains the secret for validation
-  - We only send status updates (not updates for example the confirmation count)
+  - We only send status updates (not updates for confirmation count)
   - UpdatedAt means the DateTime of the latest status change
 
 ## Bitcoin

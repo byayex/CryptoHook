@@ -19,18 +19,13 @@ public class CurrenciesController(ConfigManager configManager, ILogger<Currencie
     {
         try
         {
-            _logger.LogInformation("Retrieving available currencies");
-
-            var availableCurrencies = _configManager.GetAvailableCurrencies();
-
-            _logger.LogInformation("Successfully retrieved {Count} available currencies", availableCurrencies.Count);
-
-            return Ok(availableCurrencies);
+            _logger.LogInformation("Successfully returned {Count} usable currencies", _configManager.UsableCurrencies.Count);
+            return Ok(_configManager.UsableCurrencies);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An error occurred while retrieving available currencies");
-            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while retrieving available currencies.");
+            _logger.LogError(ex, "An error occurred while retrieving usable currencies");
+            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while retrieving usable currencies.");
         }
     }
 }

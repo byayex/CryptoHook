@@ -8,6 +8,7 @@ public class ConfigManager
 {
     private readonly ILogger<ConfigManager> _logger;
     private readonly CurrencyConfigList _currencyConfigList;
+    public readonly IReadOnlyList<AvailableCurrency> UsableCurrencies = [];
 
     public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger)
     {
@@ -18,6 +19,15 @@ public class ConfigManager
         {
             config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
         }
+
+        UsableCurrencies = AvailableCurrencies.Currencies
+            .Where(c => _currencyConfigList.Any(cc => cc.Symbol == c.Symbol && cc.IsEnabled))
+            .Select(c => new AvailableCurrency
+            {
+                Symbol = c.Symbol,
+                Name = c.Name,
+                Network = c.Network
+            }).ToList();
     }
 
     public CurrencyConfig GetCurrencyConfig(string symbol, string network)
@@ -37,17 +47,5 @@ public class ConfigManager
         }
 
         return config;
-    }
-
-    public List<AvailableCurrency> GetAvailableCurrencies()
-    {
-        return AvailableCurrencies.Currencies
-            .Where(c => _currencyConfigList.Any(cc => cc.Symbol == c.Symbol && cc.IsEnabled))
-            .Select(c => new AvailableCurrency
-            {
-                Symbol = c.Symbol,
-                Name = c.Name,
-                Network = c.Network
-            }).ToList();
     }
 }
