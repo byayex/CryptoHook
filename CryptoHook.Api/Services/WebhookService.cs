@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
@@ -27,9 +29,13 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
         foreach (var webhook in _webhookConfigs)
         {
             _logger.LogInformation("Sending webhook notification to {Url}", webhook.Url);
-            var content = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("X-Signature", webhook.Secret);
+
+            var signature = GenerateHmacSignature(jsonPayload, webhook.Secret);
+            httpClient.DefaultRequestHeaders.Add("X-Signature", $"sha256={signature}");
+
             try
             {
                 var response = await httpClient.PostAsync(webhook.Url, content);
@@ -41,5 +47,21 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
                 _logger.LogError(e, "Error sending webhook notification to {Url}", webhook.Url);
             }
         }
+    }
+
+    /// <summary>
+    /// Generates HMAC-SHA256 signature for webhook payload verification
+    /// </summary>
+    /// <param name="payload">The JSON payload to sign</param>
+    /// <param name="secret">The webhook secret key</param>
+    /// <returns>Hex-encoded HMAC signature</returns>
+    private static string GenerateHmacSignature(string payload, string secret)
+    {
+        var keyBytes = Encoding.UTF8.GetBytes(secret);
+        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+
+        using var hmac = new HMACSHA256(keyBytes);
+        var hashBytes = hmac.ComputeHash(payloadBytes);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }
