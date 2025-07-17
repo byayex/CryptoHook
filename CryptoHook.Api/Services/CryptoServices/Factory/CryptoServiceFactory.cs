@@ -11,7 +11,7 @@ public class CryptoServiceFactory(
     ILoggerFactory loggerFactory) : ICryptoServiceFactory
 {
     private readonly ConcurrentDictionary<AvailableCurrency, ICryptoService> _services = new();
-    private readonly ConcurrentDictionary<string, ICryptoDataProvider> _dataProviders = new();
+    private readonly ConcurrentDictionary<AvailableCurrency, ICryptoDataProvider> _dataProviders = new();
     private readonly ConfigManager _configManager = configManager;
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
@@ -58,7 +58,7 @@ public class CryptoServiceFactory(
                 c.Symbol, c.Network, c.GetHashCode());
 
             var config = _configManager.GetCurrencyConfig(c.Symbol, c.Network);
-            var dataProvider = GetDataProvider(c.Symbol, c.Network);
+            var dataProvider = GetDataProvider(c);
 
             var createdService = c.Symbol switch
             {
@@ -88,21 +88,20 @@ public class CryptoServiceFactory(
         return service;
     }
 
-    public ICryptoDataProvider GetDataProvider(string symbol, string network)
+    public ICryptoDataProvider GetDataProvider(AvailableCurrency currency)
     {
-        var key = $"{symbol}_{network}";
-
-        return _dataProviders.GetOrAdd(key, _ =>
+        return _dataProviders.GetOrAdd(currency, _ =>
         {
-            _logger.LogInformation("Creating new data provider for {Symbol} on {Network}", symbol, network);
+            _logger.LogInformation("Creating new data provider for {Symbol} on {Network}", currency.Symbol, currency.Network);
 
-            return symbol switch
+            return currency.Symbol switch
             {
                 "BTC" => new BitcoinDataProvider(
                     _loggerFactory.CreateLogger<BitcoinDataProvider>(),
-                    _httpClientFactory),
+                    _httpClientFactory,
+                    _configManager.GetCurrencyConfig(currency.Symbol, currency.Network)),
 
-                _ => throw new NotSupportedException($"No data provider implemented for currency: {symbol}")
+                _ => throw new NotSupportedException($"No data provider implemented for currency: {currency.Symbol}")
             };
         });
     }

@@ -1,25 +1,26 @@
+using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
 using NBitcoin;
 using System.Numerics;
 
 namespace CryptoHook.Api.Services.CryptoServices.DataProvider;
 
-public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClientFactory httpClientFactory) : ICryptoDataProvider
+public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClientFactory httpClientFactory, CurrencyConfig currencyConfig) : ICryptoDataProvider
 {
     private readonly ILogger<BitcoinDataProvider> _logger = logger;
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
-    public string Symbol => "BTC";
+    public CurrencyConfig CurrencyConfig { get; } = currencyConfig;
 
-    public async Task<List<PaymentTransaction>> GetTransactionsAsync(string address, string network, uint limit = 2)
+    public async Task<List<PaymentTransaction>> GetTransactionsAsync(string address, uint limit = 2)
     {
         _logger.LogDebug("Fetching payment transactions for address {Address} with limit {Limit}", address, limit);
 
-        var _network = Network.GetNetwork(network);
+        var _network = Network.GetNetwork(CurrencyConfig.Network);
 
         if (_network == null)
         {
-            _logger.LogError("Invalid network specified: {Network} for Symbol {Symbol}", network, Symbol);
-            throw new ArgumentException($"Invalid network: {network}", nameof(network));
+            _logger.LogError("Invalid network specified: {Network} for Symbol {Symbol}", CurrencyConfig.Network, CurrencyConfig.Symbol);
+            throw new ArgumentException($"Invalid network: {CurrencyConfig.Network}", nameof(CurrencyConfig.Network));
         }
 
         var bitcoinTransactions = await GetTransactionsInternalAsync(address, _network, limit);
@@ -27,6 +28,11 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
 
         foreach (var tx in bitcoinTransactions)
         {
+            if (paymentTransactions.Count >= limit)
+            {
+                break;
+            }
+
             var txId = tx.GetHash().ToString();
             var confirmations = await GetConfirmationsAsync(txId, _network);
 
@@ -36,7 +42,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
                     if (o.ScriptPubKey is null)
                         return false;
 
-                    var destinationAddress = o.ScriptPubKey.GetDestinationAddress(Network.GetNetwork(network) ?? Network.Main);
+                    var destinationAddress = o.ScriptPubKey.GetDestinationAddress(Network.GetNetwork(CurrencyConfig.Network) ?? Network.Main);
                     if (destinationAddress is null)
                         return false;
 
@@ -58,12 +64,12 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
             }
         }
 
-        return paymentTransactions.Take((int)limit).ToList();
+        return paymentTransactions;
     }
 
     private async Task<List<Transaction>> GetTransactionsInternalAsync(string address, Network network, uint limit = 2)
     {
-        _logger.LogDebug("Fetching transactions for address {Address} in {Symbol}", address, Symbol);
+        _logger.LogDebug("Fetching transactions for address {Address} in {Symbol}", address, CurrencyConfig.Symbol);
 
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
         var txsUrl = $"{apiBaseUrl}/address/{address}/txs";
@@ -115,7 +121,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
 
     private async Task<uint> GetConfirmationsAsync(string txId, Network network)
     {
-        _logger.LogDebug("Fetching confirmations for transaction {TxId} in {Symbol}", txId, Symbol);
+        _logger.LogDebug("Fetching confirmations for transaction {TxId} in {Symbol}", txId, CurrencyConfig.Symbol);
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
 
         try
