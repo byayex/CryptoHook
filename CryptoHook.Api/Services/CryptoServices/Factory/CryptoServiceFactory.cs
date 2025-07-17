@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
-using CryptoHook.Api.Models.Consts;
-using Microsoft.Extensions.Logging;
-using System.Net.Http;
+using CryptoHook.Api.Services.CryptoServices.DataProvider;
 
 namespace CryptoHook.Api.Services.CryptoServices.Factory;
 
@@ -13,6 +11,7 @@ public class CryptoServiceFactory(
     ILoggerFactory loggerFactory) : ICryptoServiceFactory
 {
     private readonly ConcurrentDictionary<AvailableCurrency, ICryptoService> _services = new();
+    private readonly ConcurrentDictionary<string, ICryptoDataProvider> _dataProviders = new();
     private readonly ConfigManager _configManager = configManager;
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
@@ -59,13 +58,14 @@ public class CryptoServiceFactory(
                 c.Symbol, c.Network, c.GetHashCode());
 
             var config = _configManager.GetCurrencyConfig(c.Symbol, c.Network);
+            var dataProvider = GetDataProvider(c.Symbol, c.Network);
 
             var createdService = c.Symbol switch
             {
                 "BTC" => new BitcoinService(
                     config,
                     _loggerFactory.CreateLogger<BitcoinService>(),
-                    _httpClientFactory),
+                    dataProvider),
 
                 _ => throw new NotSupportedException($"No service implemented for currency: {c.Symbol}")
             };
@@ -86,5 +86,24 @@ public class CryptoServiceFactory(
             service.GetType().Name, currency.Symbol, currency.Network);
 
         return service;
+    }
+
+    public ICryptoDataProvider GetDataProvider(string symbol, string network)
+    {
+        var key = $"{symbol}_{network}";
+
+        return _dataProviders.GetOrAdd(key, _ =>
+        {
+            _logger.LogInformation("Creating new data provider for {Symbol} on {Network}", symbol, network);
+
+            return symbol switch
+            {
+                "BTC" => new BitcoinDataProvider(
+                    _loggerFactory.CreateLogger<BitcoinDataProvider>(),
+                    _httpClientFactory),
+
+                _ => throw new NotSupportedException($"No data provider implemented for currency: {symbol}")
+            };
+        });
     }
 }

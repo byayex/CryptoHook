@@ -1,4 +1,3 @@
-using System.Collections;
 
 namespace CryptoHook.Api.Models.Configs;
 
