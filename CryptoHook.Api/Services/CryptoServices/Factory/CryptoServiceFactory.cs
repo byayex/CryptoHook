@@ -92,7 +92,7 @@ public class CryptoServiceFactory(
     {
         return _dataProviders.GetOrAdd(currency, _ =>
         {
-            _logger.LogInformation("Creating new data provider for {Symbol} on {Network}", currency.Symbol, currency.Network);
+            _logger.LogInformation("Creating ew data provider for {Symbol} on {Network}", currency.Symbol, currency.Network);
 
             return currency.Symbol switch
             {

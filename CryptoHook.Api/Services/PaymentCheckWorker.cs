@@ -80,16 +80,19 @@ public class PaymentCheckWorker(
 
                 var result = await cryptoService.CheckTransactionStatus(request);
 
-                if (result.Status != request.Status)
+                bool shouldNotify = result.Status != request.Status ||
+                   result.ConfirmationCount != request.ConfirmationCount;
+
+                request.Status = result.Status;
+                request.AmountPaid = result.AmountPaid;
+                request.ConfirmationCount = result.ConfirmationCount;
+                request.UpdatedAt = DateTime.UtcNow;
+                request.TransactionId = result.TransactionId;
+
+                if (shouldNotify)
                 {
                     await _webhookService.NotifyPaymentChange(result);
-
-                    _logger.LogInformation("Payment {PaymentId} status changed from {OldStatus} to {NewStatus}", request.Id, request.Status, result.Status);
-                    request.Status = result.Status;
-                    request.AmountPaid = result.AmountPaid;
-                    request.ConfirmationCount = result.ConfirmationCount;
-                    request.UpdatedAt = DateTime.UtcNow;
-                    request.TransactionId = result.TransactionId;
+                    _logger.LogInformation("Payment {PaymentId} updated - Status: {Status}, Confirmations: {Confirmations}", request.Id, result.Status, result.ConfirmationCount);
                 }
             }
         }

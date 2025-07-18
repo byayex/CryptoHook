@@ -76,10 +76,11 @@ public class BitcoinService : ICryptoService
     {
         _logger.LogInformation("Checking transaction status for {Symbol} at address {Address}", Symbol, request.ReceivingAddress);
 
-        var transactions = await _dataProvider.GetTransactionsAsync(request.ReceivingAddress, request.Network);
+        var transactions = await _dataProvider.GetTransactionsAsync(request.ReceivingAddress);
 
         var paymentResult = new PaymentRequest
         {
+            Id = request.Id,
             AmountPaid = 0,
             ConfirmationCount = 0,
             Status = request.Status,
@@ -97,7 +98,9 @@ public class BitcoinService : ICryptoService
         {
             _logger.LogWarning("Multiple transactions found for {Symbol} at {Address}.", Symbol, request.ReceivingAddress);
             paymentResult.Status = PaymentStatusEnum.MultipleTransactions;
-            paymentResult.TransactionId = "Multiple";
+            paymentResult.TransactionId = "";
+            paymentResult.AmountPaid = transactions.Aggregate(BigInteger.Zero, (acc, t) => acc + t.AmountPaid);
+            paymentResult.ConfirmationCount = 0; // Confirmation count is not needed with multiple transactions (we dont accept multiple transactions)
             return paymentResult;
         }
 

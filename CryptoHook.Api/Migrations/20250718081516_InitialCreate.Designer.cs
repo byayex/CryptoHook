@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CryptoHook.Api.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20250715211019_InitalCreate")]
-    partial class InitalCreate
+    [Migration("20250718081516_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
