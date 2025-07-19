@@ -2,7 +2,6 @@ using CryptoHook.Api.Data;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Services;
-using CryptoHook.Api.Services.CryptoServices.DataProvider;
 using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +17,8 @@ builder.Services.AddApiVersioning(options =>
     options.ReportApiVersions = true;
 });
 
+builder.Services.AddSingleton<IAvailableCurrenciesManager, AvailableCurrenciesManager>();
+
 builder.Services.AddOptions<CurrencyConfigList>()
     .Configure(options =>
     {
@@ -26,21 +27,19 @@ builder.Services.AddOptions<CurrencyConfigList>()
             binderOptions.BindNonPublicProperties = true;
         });
     })
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+    .ValidateOnStart()
+    .ValidateDataAnnotations();
 
 builder.Services.AddOptions<WebhookConfigList>()
     .Bind(builder.Configuration.GetSection("Webhooks"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
+    .ValidateOnStart()
+    .ValidateDataAnnotations();
 
 builder.Services.AddSingleton<ConfigManager>();
 
 builder.Services.AddSingleton<IWebhookService, WebhookService>();
 
 builder.Services.AddSingleton<ICryptoServiceFactory, CryptoServiceFactory>();
-
-builder.Services.AddSingleton<IAvailableCurrenciesService, AvailableCurrenciesService>();
 
 builder.Services.AddHostedService<PaymentCheckWorker>();
 

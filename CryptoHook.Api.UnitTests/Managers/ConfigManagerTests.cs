@@ -11,13 +11,13 @@ public class ConfigManagerTests
 {
     private readonly Mock<ILogger<ConfigManager>> _mockLogger;
     private readonly Mock<IOptions<CurrencyConfigList>> _mockOptions;
-    private readonly Mock<IAvailableCurrenciesService> _mockAvailableCurrenciesService;
+    private readonly Mock<IAvailableCurrenciesManager> _mockAvailableCurrenciesService;
 
     public ConfigManagerTests()
     {
         _mockLogger = new Mock<ILogger<ConfigManager>>();
         _mockOptions = new Mock<IOptions<CurrencyConfigList>>();
-        _mockAvailableCurrenciesService = new Mock<IAvailableCurrenciesService>();
+        _mockAvailableCurrenciesService = new Mock<IAvailableCurrenciesManager>();
     }
 
     private static IReadOnlyList<AvailableCurrency> CreateTestAvailableCurrencies()

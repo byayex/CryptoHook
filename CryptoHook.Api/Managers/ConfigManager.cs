@@ -7,21 +7,21 @@ public class ConfigManager
 {
     private readonly ILogger<ConfigManager> _logger;
     private readonly CurrencyConfigList _currencyConfigList;
-    private readonly IAvailableCurrenciesService _availableCurrenciesService;
+    private readonly IAvailableCurrenciesManager _availableCurrenciesManager;
     private readonly IReadOnlyList<AvailableCurrency> UsableCurrencies = [];
 
-    public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger, IAvailableCurrenciesService availableCurrenciesService)
+    public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger, IAvailableCurrenciesManager availableCurrenciesManager)
     {
         _logger = logger;
         _currencyConfigList = currencyConfigList.Value;
-        _availableCurrenciesService = availableCurrenciesService;
+        _availableCurrenciesManager = availableCurrenciesManager;
 
         foreach (var config in _currencyConfigList)
         {
             config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
         }
 
-        UsableCurrencies = _availableCurrenciesService.GetAvailableCurrencies()
+        UsableCurrencies = _availableCurrenciesManager.GetAvailableCurrencies()
             .Where(c => _currencyConfigList.Any(cc =>
                 cc.Symbol.Equals(c.Symbol, StringComparison.OrdinalIgnoreCase)
                 && cc.Network.Equals(c.Network, StringComparison.OrdinalIgnoreCase)
