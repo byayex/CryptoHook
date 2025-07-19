@@ -27,7 +27,7 @@ public class CryptoServiceFactory(
     {
         _logger.LogDebug("Getting service for symbol: {Symbol} on network: {Network}", symbol, network);
 
-        var currency = _configManager.UsableCurrencies
+        var currency = _configManager.GetUsableCurrencies()
             .FirstOrDefault(c => c.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase) &&
                                  c.Network.Equals(network, StringComparison.OrdinalIgnoreCase));
 
@@ -43,7 +43,7 @@ public class CryptoServiceFactory(
 
     private ICryptoService GetCryptoService(AvailableCurrency currency)
     {
-        if (!_configManager.UsableCurrencies.Any(c => c.Equals(currency)))
+        if (!_configManager.GetUsableCurrencies().Any(c => c.Equals(currency)))
         {
             _logger.LogError("No service available for currency: {Symbol} on network: {Network}", currency.Symbol, currency.Network);
             throw new InvalidOperationException($"No service available for currency: {currency}");

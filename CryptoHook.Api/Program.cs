@@ -40,6 +40,8 @@ builder.Services.AddSingleton<IWebhookService, WebhookService>();
 
 builder.Services.AddSingleton<ICryptoServiceFactory, CryptoServiceFactory>();
 
+builder.Services.AddSingleton<IAvailableCurrenciesService, AvailableCurrenciesService>();
+
 builder.Services.AddHostedService<PaymentCheckWorker>();
 
 builder.Services.AddDbContextFactory<DatabaseContext>(options =>
