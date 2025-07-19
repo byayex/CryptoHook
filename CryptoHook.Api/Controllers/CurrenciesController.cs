@@ -19,8 +19,9 @@ public class CurrenciesController(ConfigManager configManager, ILogger<Currencie
     {
         try
         {
-            _logger.LogInformation("Successfully returned {Count} usable currencies", _configManager.GetUsableCurrencies().Count);
-            return Ok(_configManager.GetUsableCurrencies());
+            var usableCurrencies = _configManager.GetUsableCurrencies();
+            _logger.LogInformation("Successfully returned {Count} usable currencies", usableCurrencies.Count);
+            return Ok(usableCurrencies);
         }
         catch (Exception ex)
         {

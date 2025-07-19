@@ -26,6 +26,25 @@ public class ValidCurrencyAttribute : ValidationAttribute
             return new ValidationResult(FormatErrorMessage(validationContext.DisplayName));
         }
 
+        // Validate confirmations
+        if (config.Confirmations is null || config.Confirmations.Count == 0)
+        {
+            return new ValidationResult("Confirmations must not be empty.", [nameof(config.Confirmations)]);
+        }
+
+        if (!config.Confirmations.Any(c => c.Amount == 0))
+        {
+            return new ValidationResult("Confirmations must have a base entry with Amount = 0.", [nameof(config.Confirmations)]);
+        }
+
+        var amounts = config.Confirmations.Select(c => c.Amount).ToList();
+        var distinctAmounts = amounts.Distinct().ToList();
+
+        if (distinctAmounts.Count != amounts.Count)
+        {
+            return new ValidationResult("Confirmations must have unique Amount values.", [nameof(config.Confirmations)]);
+        }
+
         return ValidationResult.Success;
     }
 
