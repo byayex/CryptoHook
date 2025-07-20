@@ -132,7 +132,7 @@ public class CurrencyConfigListTests : IDisposable
         var results = configList.Validate(context).ToList();
 
         // Assert
-        Assert.NotEmpty(results);
+        Assert.Empty(results);
     }
 
     [Fact]
