@@ -43,7 +43,7 @@ public class PaymentCheckWorker(
         }
     }
 
-    private async Task CheckPayments(CancellationToken stoppingToken)
+    internal async Task CheckPayments(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Checking for pending or paid payments.");
 
