@@ -17,8 +17,6 @@ builder.Services.AddApiVersioning(options =>
     options.ReportApiVersions = true;
 });
 
-builder.Services.AddSingleton<IAvailableCurrenciesManager, AvailableCurrenciesManager>();
-
 builder.Services.AddOptions<CurrencyConfigList>()
     .Configure(options =>
     {

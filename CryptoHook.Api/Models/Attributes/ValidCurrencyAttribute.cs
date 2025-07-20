@@ -13,7 +13,7 @@ public class ValidCurrencyAttribute : ValidationAttribute
             return new ValidationResult("The configuration must be of type CurrencyConfig.");
         }
 
-        var availableCurrency = AvailableCurrencies.Currencies
+        var availableCurrency = AvailableCurrencies.GetCurrencies()
             .FirstOrDefault(c => c.Symbol == config.Symbol && c.Network == config.Network);
 
         if (availableCurrency == null)
@@ -50,7 +50,7 @@ public class ValidCurrencyAttribute : ValidationAttribute
 
     public override string FormatErrorMessage(string name)
     {
-        var availablePairs = AvailableCurrencies.Currencies
+        var availablePairs = AvailableCurrencies.GetCurrencies()
             .Select(c => $"'{c.Symbol}' ('{c.Name}') on network '{c.Network}'")
             .ToList();
 

@@ -1,34 +1,37 @@
 using System.Numerics;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Consts;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
 namespace CryptoHook.Api.UnitTests;
 
-public class ConfigManagerTests
+public class ConfigManagerTests : IDisposable
 {
     private readonly Mock<ILogger<ConfigManager>> _mockLogger;
     private readonly Mock<IOptions<CurrencyConfigList>> _mockOptions;
-    private readonly Mock<IAvailableCurrenciesManager> _mockAvailableCurrenciesService;
+
+    private readonly Func<IReadOnlyList<AvailableCurrency>> _originalGetCurrencies;
 
     public ConfigManagerTests()
     {
         _mockLogger = new Mock<ILogger<ConfigManager>>();
         _mockOptions = new Mock<IOptions<CurrencyConfigList>>();
-        _mockAvailableCurrenciesService = new Mock<IAvailableCurrenciesManager>();
+        _originalGetCurrencies = AvailableCurrencies.GetCurrencies;
     }
 
-    private static IReadOnlyList<AvailableCurrency> CreateTestAvailableCurrencies()
+    public void Dispose()
     {
-        return new List<AvailableCurrency>
+        AvailableCurrencies.GetCurrencies = _originalGetCurrencies;
+    }
+
+    private static IReadOnlyList<AvailableCurrency> CreateTestAvailableCurrencies => new List<AvailableCurrency>
         {
             new() { Symbol = "BTC", Name = "Bitcoin", Network = "Main" },
             new() { Symbol = "ETH", Name = "Ethereum", Network = "Main" }
-            // Note: Not including BTC testnet to keep tests focused on enabled currencies
         }.AsReadOnly();
-    }
 
     private static CurrencyConfigList CreateTestCurrencyConfigList()
     {
@@ -82,12 +85,12 @@ public class ConfigManagerTests
     private ConfigManager CreateConfigManager(CurrencyConfigList? currencyConfigList = null, IReadOnlyList<AvailableCurrency>? availableCurrencies = null)
     {
         currencyConfigList ??= CreateTestCurrencyConfigList();
-        availableCurrencies ??= CreateTestAvailableCurrencies();
+        availableCurrencies ??= CreateTestAvailableCurrencies;
 
         _mockOptions.Setup(o => o.Value).Returns(currencyConfigList);
-        _mockAvailableCurrenciesService.Setup(s => s.GetAvailableCurrencies()).Returns(availableCurrencies);
+        AvailableCurrencies.GetCurrencies = () => availableCurrencies;
 
-        return new ConfigManager(_mockOptions.Object, _mockLogger.Object, _mockAvailableCurrenciesService.Object);
+        return new ConfigManager(_mockOptions.Object, _mockLogger.Object);
     }
 
     [Fact]

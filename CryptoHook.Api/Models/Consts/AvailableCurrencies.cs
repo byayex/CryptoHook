@@ -4,9 +4,16 @@ namespace CryptoHook.Api.Models.Consts;
 
 public static class AvailableCurrencies
 {
-     public static readonly IReadOnlyList<AvailableCurrency> Currencies =
-          new List<AvailableCurrency>
-          {
-            new() { Symbol = "BTC", Name = "Bitcoin", Network = "Main" },
-          }.AsReadOnly();
+  private static readonly IReadOnlyList<AvailableCurrency> _defaultCurrencies =
+  [
+      new() { Name = "Bitcoin", Symbol = "BTC", Network = "Main" },
+  ];
+
+  /// <summary>
+  /// Gets the list of available currencies. 
+  /// SHOULD ONLY BE USED TO VALIDATE SETTINGS.
+  /// Use ConfigManager.GetUsableCurrencies() to retrieve currencies that are enabled in the configuration
+  /// </summary>
+  /// <returns>A read-only list of available currencies.</returns>
+  public static Func<IReadOnlyList<AvailableCurrency>> GetCurrencies { get; set; } = () => _defaultCurrencies;
 }

@@ -1,4 +1,5 @@
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Consts;
 using Microsoft.Extensions.Options;
 
 namespace CryptoHook.Api.Managers;
@@ -7,21 +8,19 @@ public class ConfigManager
 {
     private readonly ILogger<ConfigManager> _logger;
     private readonly CurrencyConfigList _currencyConfigList;
-    private readonly IAvailableCurrenciesManager _availableCurrenciesManager;
     private readonly IReadOnlyList<AvailableCurrency> UsableCurrencies = [];
 
-    public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger, IAvailableCurrenciesManager availableCurrenciesManager)
+    public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger)
     {
         _logger = logger;
         _currencyConfigList = currencyConfigList.Value;
-        _availableCurrenciesManager = availableCurrenciesManager;
 
         foreach (var config in _currencyConfigList)
         {
             config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
         }
 
-        UsableCurrencies = _availableCurrenciesManager.GetAvailableCurrencies()
+        UsableCurrencies = AvailableCurrencies.GetCurrencies()
             .Where(c => _currencyConfigList.Any(cc =>
                 cc.Symbol.Equals(c.Symbol, StringComparison.OrdinalIgnoreCase)
                 && cc.Network.Equals(c.Network, StringComparison.OrdinalIgnoreCase)
