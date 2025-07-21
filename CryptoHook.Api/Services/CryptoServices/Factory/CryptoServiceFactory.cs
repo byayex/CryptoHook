@@ -88,7 +88,7 @@ public class CryptoServiceFactory(
         return service;
     }
 
-    public ICryptoDataProvider GetDataProvider(AvailableCurrency currency)
+    private ICryptoDataProvider GetDataProvider(AvailableCurrency currency)
     {
         return _dataProviders.GetOrAdd(currency, _ =>
         {
