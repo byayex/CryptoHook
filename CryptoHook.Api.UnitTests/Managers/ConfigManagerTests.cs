@@ -25,6 +25,7 @@ public class ConfigManagerTests : IDisposable
     public void Dispose()
     {
         AvailableCurrencies.GetCurrencies = _originalGetCurrencies;
+        GC.SuppressFinalize(this);
     }
 
     private static IReadOnlyList<AvailableCurrency> CreateTestAvailableCurrencies => new List<AvailableCurrency>

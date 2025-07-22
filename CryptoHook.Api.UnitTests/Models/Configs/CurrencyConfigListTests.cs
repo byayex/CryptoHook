@@ -34,6 +34,7 @@ public class CurrencyConfigListTests : IDisposable
     public void Dispose()
     {
         AvailableCurrencies.GetCurrencies = _originalGetCurrencies;
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

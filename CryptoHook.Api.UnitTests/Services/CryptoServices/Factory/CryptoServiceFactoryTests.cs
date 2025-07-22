@@ -1,14 +1,13 @@
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Services.CryptoServices;
-using CryptoHook.Api.Services.CryptoServices.DataProvider;
 using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 
-namespace CryptoHook.Api.UnitTests.Services.Factory;
+namespace CryptoHook.Api.UnitTests.Services.CryptoServices.Factory;
 
 public class CryptoServiceFactoryTests
 {
