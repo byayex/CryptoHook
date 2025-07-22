@@ -33,8 +33,14 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
             var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
             var httpClient = _httpClientFactory.CreateClient();
 
-            var signature = GenerateHmacSignature(jsonPayload, webhook.Secret);
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            var requestId = Guid.NewGuid().ToString();
+
+            var signature = GenerateHmacSignature(jsonPayload, timestamp, requestId, webhook.Secret);
+
             httpClient.DefaultRequestHeaders.Add("X-Signature", $"sha256={signature}");
+            httpClient.DefaultRequestHeaders.Add("X-Timestamp", timestamp);
+            httpClient.DefaultRequestHeaders.Add("X-Request-ID", requestId);
 
             try
             {
@@ -50,15 +56,19 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
     }
 
     /// <summary>
-    /// Generates HMAC-SHA256 signature for webhook payload verification
+    /// Generates HMAC-SHA256 signature for webhook payload verification with replay attack protection
     /// </summary>
     /// <param name="payload">The JSON payload to sign</param>
+    /// <param name="timestamp">Unix timestamp for replay protection</param>
+    /// <param name="requestId">Unique request identifier</param>
     /// <param name="secret">The webhook secret key</param>
     /// <returns>Hex-encoded HMAC signature</returns>
-    private static string GenerateHmacSignature(string payload, string secret)
+    private static string GenerateHmacSignature(string payload, string timestamp, string requestId, string secret)
     {
         var keyBytes = Encoding.UTF8.GetBytes(secret);
-        var payloadBytes = Encoding.UTF8.GetBytes(payload);
+
+        var signaturePayload = $"{timestamp}.{requestId}.{payload}";
+        var payloadBytes = Encoding.UTF8.GetBytes(signaturePayload);
 
         using var hmac = new HMACSHA256(keyBytes);
         var hashBytes = hmac.ComputeHash(payloadBytes);

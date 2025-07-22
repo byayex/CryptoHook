@@ -14,7 +14,6 @@ public class CryptoServiceFactoryTests
     private readonly ConfigManager _configManager;
     private readonly Mock<IHttpClientFactory> _mockHttpClient;
     private readonly ILoggerFactory _loggerFactory;
-    private readonly Mock<ILogger<CryptoServiceFactory>> _mockServiceLogger;
 
     public CryptoServiceFactoryTests()
     {
@@ -58,7 +57,6 @@ public class CryptoServiceFactoryTests
         _mockHttpClient = new Mock<IHttpClientFactory>();
 
         _loggerFactory = NullLoggerFactory.Instance;
-        _mockServiceLogger = new Mock<ILogger<CryptoServiceFactory>>();
     }
 
     [Theory]

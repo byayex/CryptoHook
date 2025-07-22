@@ -12,7 +12,6 @@ public class ConfigManagerTests : IDisposable
 {
     private readonly Mock<ILogger<ConfigManager>> _mockLogger;
     private readonly Mock<IOptions<CurrencyConfigList>> _mockOptions;
-
     private readonly Func<IReadOnlyList<AvailableCurrency>> _originalGetCurrencies;
 
     public ConfigManagerTests()

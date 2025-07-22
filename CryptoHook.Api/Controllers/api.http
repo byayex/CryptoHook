@@ -4,7 +4,7 @@ GET http://localhost:5116/api/v1/currencies
 ###
 
 # Request to create a new payment request
-POST http://localhost:5116/api/v1/payments/btc/main/100000000
+POST http://localhost:5116/api/v1/payments/btc/main/500000
 
 ###
 
