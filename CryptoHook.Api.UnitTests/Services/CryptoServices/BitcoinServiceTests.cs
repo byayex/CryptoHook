@@ -180,13 +180,13 @@ public class BitcoinServiceTests
             _dataProvider.Object);
 
         var testPaymentRequest = CreateTestPaymentRequest();
-        testPaymentRequest.ConfirmationNeeded = 3; // Require 3 confirmations
+        testPaymentRequest.ConfirmationNeeded = 3;
 
         var transaction = new PaymentTransaction
         {
             TransactionId = "test-tx-id-123",
-            AmountPaid = 100000, // Exact amount expected
-            Confirmations = 1 // Insufficient confirmations (needs 3)
+            AmountPaid = 100000,
+            Confirmations = 1
         };
 
         _dataProvider
@@ -221,7 +221,7 @@ public class BitcoinServiceTests
         var transaction = new PaymentTransaction
         {
             TransactionId = "test-tx-id-123",
-            AmountPaid = 50000, // Less than expected (100000)
+            AmountPaid = 50000,
             Confirmations = 1
         };
 
@@ -257,7 +257,7 @@ public class BitcoinServiceTests
         var transaction = new PaymentTransaction
         {
             TransactionId = "test-tx-id-123",
-            AmountPaid = 150000, // More than expected (100000)
+            AmountPaid = 150000,
             Confirmations = 1
         };
 
