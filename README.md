@@ -9,7 +9,6 @@ A **simple**, **self-hosted**, **open-source** cryptocurrency payment processor 
 
 - Status wird überschrieben (sollte aufpassen wegen Reorgs oder temporären Fehlern)
 - Nur noch RPC
-- Updated heißt Updatet NICHT (checked) muss ich ändern, kann dann beim status override als threshold timer dienen
 
 ## ⚠️ Disclaimer
 

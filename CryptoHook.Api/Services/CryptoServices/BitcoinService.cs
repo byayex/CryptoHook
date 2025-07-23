@@ -78,7 +78,7 @@ public class BitcoinService : ICryptoService
 
         var transactions = await _dataProvider.GetTransactionsAsync(request.ReceivingAddress);
 
-        var paymentResult = new PaymentRequest
+        var checkedPayment = new PaymentRequest
         {
             Id = request.Id,
             AmountPaid = 0,
@@ -91,73 +91,73 @@ public class BitcoinService : ICryptoService
             Network = request.Network,
             CreatedAt = request.CreatedAt,
             ExpiresAt = request.ExpiresAt,
-            UpdatedAt = DateTime.UtcNow,
+            UpdatedAt = request.UpdatedAt,
         };
 
         if (transactions.Count > 1)
         {
             _logger.LogWarning("Multiple transactions found for {Symbol} at {Address}.", Symbol, request.ReceivingAddress);
-            paymentResult.Status = PaymentStatusEnum.MultipleTransactions;
-            paymentResult.TransactionId = "";
-            paymentResult.AmountPaid = transactions.Aggregate(BigInteger.Zero, (acc, t) => acc + t.AmountPaid);
-            paymentResult.ConfirmationCount = 0; // Confirmation count is not needed with multiple transactions (we dont accept multiple transactions)
-            return paymentResult;
+            checkedPayment.TransactionId = "";
+            checkedPayment.AmountPaid = transactions.Aggregate(BigInteger.Zero, (acc, t) => acc + t.AmountPaid);
+            checkedPayment.ConfirmationCount = 0; // Confirmation count is not needed with multiple transactions (we dont accept multiple transactions)
+            checkedPayment.SetStatus(PaymentStatusEnum.MultipleTransactions);
+            return checkedPayment;
         }
 
         if (transactions.Count <= 0 && request.ExpiresAt < DateTime.UtcNow)
         {
             _logger.LogInformation("Payment request for {Symbol} at {Address} has expired. | Timeout (in minutes): {Timeout}", Symbol, request.ReceivingAddress, CurrencyConfig.InitialPaymentTimeout);
-            paymentResult.Status = PaymentStatusEnum.Expired;
-            return paymentResult;
+            checkedPayment.SetStatus(PaymentStatusEnum.Expired);
+            return checkedPayment;
         }
 
         if (transactions.Count <= 0)
         {
             _logger.LogInformation("No payment detected for {Symbol} at {Address}", Symbol, request.ReceivingAddress);
-            paymentResult.Status = PaymentStatusEnum.Pending;
-            return paymentResult;
+            checkedPayment.SetStatus(PaymentStatusEnum.Pending);
+            return checkedPayment;
         }
 
         var transaction = transactions.First();
 
-        paymentResult.TransactionId = transaction.TransactionId;
-        paymentResult.AmountPaid = transaction.AmountPaid;
-        paymentResult.ConfirmationCount = transaction.Confirmations;
+        checkedPayment.TransactionId = transaction.TransactionId;
+        checkedPayment.AmountPaid = transaction.AmountPaid;
+        checkedPayment.ConfirmationCount = transaction.Confirmations;
 
-        if (paymentResult.AmountPaid < request.AmountExpected)
+        if (checkedPayment.AmountPaid < request.AmountExpected)
         {
             _logger.LogWarning("Payment for {Symbol} at {Address} is below expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
-                Symbol, request.ReceivingAddress, request.AmountExpected, paymentResult.AmountPaid);
-            paymentResult.Status = PaymentStatusEnum.Underpaid;
-            return paymentResult;
+                Symbol, request.ReceivingAddress, request.AmountExpected, checkedPayment.AmountPaid);
+            checkedPayment.SetStatus(PaymentStatusEnum.Underpaid);
+            return checkedPayment;
         }
 
-        if (paymentResult.AmountPaid > request.AmountExpected)
+        if (checkedPayment.AmountPaid > request.AmountExpected)
         {
             _logger.LogWarning("Payment for {Symbol} at {Address} is over expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
-                Symbol, request.ReceivingAddress, request.AmountExpected, paymentResult.AmountPaid);
-            paymentResult.Status = PaymentStatusEnum.Overpaid;
-            return paymentResult;
+                Symbol, request.ReceivingAddress, request.AmountExpected, checkedPayment.AmountPaid);
+            checkedPayment.SetStatus(PaymentStatusEnum.Overpaid);
+            return checkedPayment;
         }
 
         // Using the confirmation count which got set during the payment request creation 
         // (the config that was used at the point of creation counts)
         var neededConfirmations = request.ConfirmationNeeded;
 
-        if (paymentResult.ConfirmationCount < neededConfirmations)
+        if (checkedPayment.ConfirmationCount < neededConfirmations)
         {
             _logger.LogInformation("Transaction for {Symbol} at {Address} has not enough confirmations. " +
                                    "Needed: {Needed}, Current: {Current}",
-                Symbol, request.ReceivingAddress, neededConfirmations, paymentResult.ConfirmationCount);
-            paymentResult.Status = PaymentStatusEnum.Paid;
-            return paymentResult;
+                Symbol, request.ReceivingAddress, neededConfirmations, checkedPayment.ConfirmationCount);
+            checkedPayment.SetStatus(PaymentStatusEnum.Paid);
+            return checkedPayment;
         }
 
         _logger.LogInformation("Transaction for {Symbol} at {Address} is fully paid with sufficient confirmations.",
             Symbol, request.ReceivingAddress);
-        paymentResult.Status = PaymentStatusEnum.Confirmed;
-        return paymentResult;
+        checkedPayment.SetStatus(PaymentStatusEnum.Confirmed);
+        return checkedPayment;
     }
 }

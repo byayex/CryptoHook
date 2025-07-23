@@ -95,5 +95,13 @@ public class PaymentRequest
     /// Gets or sets the transaction ID of the detected transaction.
     /// </summary>
     public string? TransactionId { get; set; }
-}
 
+    public void SetStatus(PaymentStatusEnum newStatus)
+    {
+        if (this.Status != newStatus)
+        {
+            this.Status = newStatus;
+            this.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+}
