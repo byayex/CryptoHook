@@ -7,7 +7,6 @@ A **simple**, **self-hosted**, **open-source** cryptocurrency payment processor 
 
 # ToDo
 
-- Status wird überschrieben (sollte aufpassen wegen Reorgs oder temporären Fehlern)
 - Nur noch RPC
 
 ## ⚠️ Disclaimer

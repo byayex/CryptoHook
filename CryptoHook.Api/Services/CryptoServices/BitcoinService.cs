@@ -76,7 +76,16 @@ public class BitcoinService : ICryptoService
     {
         _logger.LogInformation("Checking transaction status for {Symbol} at address {Address}", Symbol, request.ReceivingAddress);
 
-        var transactions = await _dataProvider.GetTransactionsAsync(request.ReceivingAddress);
+        var transactions = new List<PaymentTransaction>();
+        try
+        {
+            transactions = await _dataProvider.GetTransactionsAsync(request.ReceivingAddress);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve transactions for {Symbol} at address {Address}", Symbol, request.ReceivingAddress);
+            return request;
+        }
 
         var checkedPayment = new PaymentRequest
         {

@@ -23,29 +23,43 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
             throw new ArgumentException($"Invalid network: {CurrencyConfig.Network}", nameof(CurrencyConfig.Network));
         }
 
-        var bitcoinTransactions = await GetTransactionsInternalAsync(address, _network, limit);
-        var paymentTransactions = new List<PaymentTransaction>();
+        List<Transaction> bitcoinTransactions;
+        try
+        {
+            bitcoinTransactions = await GetTransactionsInternalAsync(address, _network, limit);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching transactions for address {Address}", address);
+            throw;
+        }
 
+        var paymentTransactions = new List<PaymentTransaction>();
         foreach (var tx in bitcoinTransactions)
         {
             if (paymentTransactions.Count >= limit)
-            {
                 break;
-            }
 
             var txId = tx.GetHash().ToString();
-            var confirmations = await GetConfirmationsAsync(txId, _network);
+            uint confirmations;
+            try
+            {
+                confirmations = await GetConfirmationsAsync(txId, _network);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching confirmations for transaction {TxId}", txId);
+                throw;
+            }
 
             var amountPaid = (BigInteger)tx.Outputs
                 .Where(o =>
                 {
                     if (o.ScriptPubKey is null)
                         return false;
-
                     var destinationAddress = o.ScriptPubKey.GetDestinationAddress(Network.GetNetwork(CurrencyConfig.Network) ?? Network.Main);
                     if (destinationAddress is null)
                         return false;
-
                     return destinationAddress.ToString() == address;
                 })
                 .Sum(o => o.Value.ToUnit(MoneyUnit.Satoshi));
@@ -63,7 +77,6 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
                 });
             }
         }
-
         return paymentTransactions;
     }
 
@@ -74,49 +87,33 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
         var txsUrl = $"{apiBaseUrl}/address/{address}/txs";
 
-        try
+        var response = await _httpClientFactory.CreateClient().GetAsync(txsUrl);
+        if (!response.IsSuccessStatusCode)
         {
-            var response = await _httpClientFactory.CreateClient().GetAsync(txsUrl);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Could not fetch transactions for {Address}. Status: {StatusCode}", address, response.StatusCode);
-                return new List<Transaction>();
-            }
-
-            var txsJson = await response.Content.ReadAsStringAsync();
-            using var jsonDoc = System.Text.Json.JsonDocument.Parse(txsJson);
-            var txIds = jsonDoc.RootElement.EnumerateArray()
-                .Select(tx => tx.GetProperty("txid").GetString())
-                .Where(id => !string.IsNullOrEmpty(id))
-                .Take((int)limit)
-                .ToList();
-
-            if (txIds.Count == 0)
-            {
-                return [];
-            }
-
-            var transactions = new List<Transaction>();
-            foreach (var txId in txIds)
-            {
-                try
-                {
-                    var txHex = await _httpClientFactory.CreateClient().GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
-                    transactions.Add(Transaction.Parse(txHex, network));
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to process transaction {TxId} for address {Address}", txId, address);
-                }
-            }
-
-            return transactions;
+            _logger.LogError("Could not fetch transactions for {Address}. Status: {StatusCode}", address, response.StatusCode);
+            throw new HttpRequestException($"Could not fetch transactions for {address}. Status: {response.StatusCode}");
         }
-        catch (Exception ex)
+
+        var txsJson = await response.Content.ReadAsStringAsync();
+        using var jsonDoc = System.Text.Json.JsonDocument.Parse(txsJson);
+        var txIds = jsonDoc.RootElement.EnumerateArray()
+            .Select(tx => tx.GetProperty("txid").GetString())
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Take((int)limit)
+            .ToList();
+
+        if (txIds.Count == 0)
         {
-            _logger.LogError(ex, "An error occurred while fetching transactions for address {Address}", address);
             return [];
         }
+
+        var transactions = new List<Transaction>();
+        foreach (var txId in txIds)
+        {
+            var txHex = await _httpClientFactory.CreateClient().GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
+            transactions.Add(Transaction.Parse(txHex, network));
+        }
+        return transactions;
     }
 
     private async Task<uint> GetConfirmationsAsync(string txId, Network network)
@@ -124,37 +121,28 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         _logger.LogDebug("Fetching confirmations for transaction {TxId} in {Symbol}", txId, CurrencyConfig.Symbol);
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
 
-        try
+        var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
+        var response = await _httpClientFactory.CreateClient().GetAsync(txStatusUrl);
+        if (!response.IsSuccessStatusCode)
         {
-            var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
-            var response = await _httpClientFactory.CreateClient().GetAsync(txStatusUrl);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Could not fetch transaction status for {TxId}. Status: {StatusCode}", txId, response.StatusCode);
-                return 0;
-            }
-
-            var txStatusJson = await response.Content.ReadAsStringAsync();
-            using var statusDoc = System.Text.Json.JsonDocument.Parse(txStatusJson);
-
-            if (!statusDoc.RootElement.GetProperty("confirmed").GetBoolean())
-            {
-                return 0;
-            }
-
-            var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
-
-            var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
-            var currentHeightStr = await _httpClientFactory.CreateClient().GetStringAsync(tipHeightUrl);
-            var currentHeight = uint.Parse(currentHeightStr);
-
-            return currentHeight - txBlockHeight + 1;
+            _logger.LogError("Could not fetch transaction status for {TxId}. Status: {StatusCode}", txId, response.StatusCode);
+            throw new HttpRequestException($"Could not fetch transaction status for {txId}. Status: {response.StatusCode}");
         }
-        catch (Exception ex)
+
+        var txStatusJson = await response.Content.ReadAsStringAsync();
+        using var statusDoc = System.Text.Json.JsonDocument.Parse(txStatusJson);
+
+        if (!statusDoc.RootElement.GetProperty("confirmed").GetBoolean())
         {
-            _logger.LogError(ex, "An error occurred while fetching confirmations for transaction {TxId}", txId);
             return 0;
         }
+
+        var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
+
+        var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
+        var currentHeightStr = await _httpClientFactory.CreateClient().GetStringAsync(tipHeightUrl);
+        var currentHeight = uint.Parse(currentHeightStr);
+
+        return currentHeight - txBlockHeight + 1;
     }
 }
