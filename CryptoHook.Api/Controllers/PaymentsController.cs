@@ -2,7 +2,6 @@ using System.Numerics;
 using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
-using CryptoHook.Api.Services.CryptoServices;
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Services.CryptoServices.Factory;
 
@@ -74,7 +73,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         try
         {
             var maxDerivationIndex = _databaseContext.PaymentRequests
-                .Where(pr => string.Equals(symbol, pr.CurrencySymbol))
+                .Where(pr => string.Equals(symbol, pr.CurrencySymbol, StringComparison.Ordinal))
                 .Max(pr => (long?)pr.DerivationIndex) ?? 0;
 
             var nextDerivationIndex = (ulong)(maxDerivationIndex + 1);
@@ -112,7 +111,7 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         }
         catch (Exception ex)
         {
-            transaction.Rollback();
+            await transaction.RollbackAsync();
             _logger.LogError(ex, "Failed to create payment request for symbol {Symbol}, network {Network}, and amount {Amount}", symbol, network, amount);
             return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while creating the payment request");
         }

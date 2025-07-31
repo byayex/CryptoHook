@@ -26,4 +26,10 @@
     <PackageReference Include="NBitcoin" Version="9.0.0" />
   </ItemGroup>
 
+    <PropertyGroup>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisMode>All</AnalysisMode>
+        <AnalysisLevel>latest</AnalysisLevel>
+    </PropertyGroup>
+
 </Project>

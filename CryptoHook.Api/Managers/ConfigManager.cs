@@ -20,7 +20,7 @@ public class ConfigManager
             config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
         }
 
-        UsableCurrencies = AvailableCurrencies.GetCurrencies()
+        UsableCurrencies = [.. AvailableCurrencies.GetCurrencies()
             .Where(c => _currencyConfigList.Any(cc =>
                 cc.Symbol.Equals(c.Symbol, StringComparison.OrdinalIgnoreCase)
                 && cc.Network.Equals(c.Network, StringComparison.OrdinalIgnoreCase)
@@ -30,7 +30,7 @@ public class ConfigManager
                 Symbol = c.Symbol,
                 Name = c.Name,
                 Network = c.Network
-            }).ToList();
+            })];
     }
 
     public CurrencyConfig GetCurrencyConfig(string symbol, string network)

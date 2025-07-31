@@ -1,0 +1,38 @@
+root = true
+ 
+[*.{cs,vb}]
+# CA2000: Dispose objects before losing scope
+dotnet_diagnostic.CA2000.severity = warning
+ 
+# IDE0067: Dispose objects before losing scope
+dotnet_diagnostic.IDE0067.severity = warning
+ 
+# CA2213: Disposable fields should be disposed
+dotnet_diagnostic.CA2213.severity = warning
+ 
+# CA2007: Consider calling ConfigureAwait on the awaited task
+dotnet_diagnostic.CA2007.severity = none
+ 
+# CA1848: Use the LoggerMessage delegates
+dotnet_diagnostic.CA1848.severity = none
+ 
+# CA2254: The logging message template should not vary between calls to 'LoggerExtensions.LogDebug(ILogger, string?, params object?[])'
+dotnet_diagnostic.CA2254.severity = none
+ 
+# CA2234 Modify 'DqsConnector.ExecuteRecordBasedWorkflow(string, BasicRecord, [WorkflowResultTable], [string])' to call 'HttpClient.PostAsync(Uri, HttpContent)' instead of 'HttpClient.PostAsync(string, HttpContent)'
+dotnet_diagnostic.CA2234.severity = none
+ 
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity = none
+
+# IDE0008 : Use explicit type
+dotnet_diagnostic.IDE0008.severity = none
+
+# IDE0058 : Expression value is never used
+dotnet_diagnostic.IDE0058.severity = none
+
+# CA1031: Do not catch general exception types
+dotnet_diagnostic.CA1031.severity = none
+
+# IDE0160: Convert to block scoped namespace
+dotnet_diagnostic.IDE0160.severity = none
