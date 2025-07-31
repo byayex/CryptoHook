@@ -36,7 +36,7 @@ The following list outlines the features and improvements that were originally p
 
 1.  Clone the repository:
     ```sh
-    git clone [https://github.com/byayex/CryptoHook.git](https://github.com/byayex/CryptoHook.git)
+    git clone https://github.com/byayex/CryptoHook.git
     ```
 2.  Open the solution in your preferred .NET IDE (e.g., Visual Studio, JetBrains Rider). **|** I recommend using VS Code and opening the Workspace in the root directory
 3.  Review the `CryptoHook.Api` and unit test projects to understand the basic structure.
