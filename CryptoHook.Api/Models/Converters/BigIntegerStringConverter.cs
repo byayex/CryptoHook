@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -32,6 +33,8 @@ public class BigIntegerStringConverter : JsonConverter<BigInteger>
 
     public override void Write(Utf8JsonWriter writer, BigInteger value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.ToString());
+        ArgumentNullException.ThrowIfNull(writer);
+
+        writer.WriteStringValue(value.ToString(CultureInfo.InvariantCulture));
     }
 }

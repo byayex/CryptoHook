@@ -19,6 +19,8 @@ public class CryptoServiceFactory(
 
     public ICryptoService GetService(AvailableCurrency currency)
     {
+        ArgumentNullException.ThrowIfNull(currency);
+
         _logger.LogDebug("Getting service for currency: {Symbol} on network: {Network}", currency.Symbol, currency.Network);
         return GetCryptoService(currency);
     }

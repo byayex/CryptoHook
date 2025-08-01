@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Numerics;
 
 namespace CryptoHook.Api.Models.Configs;
 
@@ -35,6 +34,8 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
         return results;
     }
 
+    private static readonly string[] SymbolNetworkMemberNames = ["Symbol", "Network"];
+
     private void ValidateUniqueSymbolNetworkCombinations(List<ValidationResult> results)
     {
         var duplicateCombinations = this.GroupBy(c => new { c.Symbol, c.Network })
@@ -43,7 +44,7 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
 
         foreach (var combo in duplicateCombinations)
         {
-            results.Add(new ValidationResult($"The combination of Symbol '{combo.Symbol}' and Network '{combo.Network}' must be unique.", new[] { "Symbol", "Network" }));
+            results.Add(new ValidationResult($"The combination of Symbol '{combo.Symbol}' and Network '{combo.Network}' must be unique.", SymbolNetworkMemberNames));
         }
     }
 }

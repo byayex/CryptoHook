@@ -27,7 +27,7 @@ public class PaymentRequest
     /// Gets or sets the current status of the payment request (e.g., Pending, Paid, Expired).
     /// </summary>
     [Required]
-    public required PaymentStatusEnum Status { get; set; }
+    public required PaymentStatus Status { get; set; }
 
     /// <summary>
     /// Gets or sets the amount of currency expected for this payment, in its smallest unit (e.g., satoshis).
@@ -96,12 +96,12 @@ public class PaymentRequest
     /// </summary>
     public string? TransactionId { get; set; }
 
-    public void SetStatus(PaymentStatusEnum newStatus)
+    public void SetStatus(PaymentStatus newStatus)
     {
-        if (this.Status != newStatus)
+        if (Status != newStatus)
         {
-            this.Status = newStatus;
-            this.UpdatedAt = DateTime.UtcNow;
+            Status = newStatus;
+            UpdatedAt = DateTime.UtcNow;
         }
     }
 }

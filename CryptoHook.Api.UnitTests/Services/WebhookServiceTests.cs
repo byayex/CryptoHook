@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Net;
 using System.Numerics;
 using System.Text;
@@ -19,7 +20,6 @@ public class WebhookServiceTests
     private readonly Mock<IOptions<WebhookConfigList>> _mockWebhookOptions;
     private readonly Mock<ILogger<WebhookService>> _mockLogger;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
-    private readonly HttpClient _httpClient;
 
     public WebhookServiceTests()
     {
@@ -28,8 +28,11 @@ public class WebhookServiceTests
         _mockLogger = new Mock<ILogger<WebhookService>>();
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
 
-        _httpClient = new HttpClient(_mockHttpMessageHandler.Object);
-        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(_httpClient);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>()))
+                     .Returns(() =>
+                     {
+                         return new HttpClient(_mockHttpMessageHandler.Object);
+                     });
     }
 
     private static PaymentRequest CreateTestPaymentRequest()
@@ -37,7 +40,7 @@ public class WebhookServiceTests
         return new PaymentRequest
         {
             Id = Guid.NewGuid(),
-            Status = PaymentStatusEnum.Paid,
+            Status = PaymentStatus.Paid,
             AmountExpected = 100000,
             AmountPaid = 100000,
             ConfirmationCount = 1,
@@ -55,8 +58,8 @@ public class WebhookServiceTests
     {
         return
         [
-            new WebhookConfig { Url = "https://example.com/webhook1", Secret = "secret1" },
-            new WebhookConfig { Url = "https://example.com/webhook2", Secret = "secret2" }
+            new WebhookConfig { Url = new Uri("https://example.com/webhook1"), Secret = "secret1" },
+            new WebhookConfig { Url = new Uri("https://example.com/webhook2"), Secret = "secret2" }
         ];
     }
 
@@ -106,7 +109,7 @@ public class WebhookServiceTests
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
 
         var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
         var paymentRequest = CreateTestPaymentRequest();
@@ -125,21 +128,21 @@ public class WebhookServiceTests
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_SendsCorrectJsonPayload()
+    public async Task NotifyPaymentChange_SendsCorrectJsonPayloadToAllConfigs()
     {
         // Arrange
         var webhookConfigs = CreateTestWebhookConfigs();
         _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
 
-        HttpRequestMessage? capturedRequest = null;
+        var capturedRequests = new List<HttpRequestMessage>();
         _mockHttpMessageHandler
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequests.Add(req)) // Add to list
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
 
         var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
         var paymentRequest = CreateTestPaymentRequest();
@@ -148,14 +151,22 @@ public class WebhookServiceTests
         await service.NotifyPaymentChange(paymentRequest);
 
         // Assert
-        Assert.NotNull(capturedRequest);
-        Assert.Equal(HttpMethod.Post, capturedRequest.Method);
-        Assert.Equal("application/json", capturedRequest.Content!.Headers.ContentType!.MediaType);
+        Assert.Equal(webhookConfigs.Count, capturedRequests.Count);
 
-        var content = await capturedRequest.Content.ReadAsStringAsync();
-        var deserializedPayment = JsonSerializer.Deserialize<PaymentRequest>(content);
-        Assert.Equal(paymentRequest.Id, deserializedPayment!.Id);
-        Assert.Equal(paymentRequest.Status, deserializedPayment.Status);
+        var expectedJsonPayload = JsonSerializer.Serialize(paymentRequest);
+
+        for (int i = 0; i < capturedRequests.Count; i++)
+        {
+            var request = capturedRequests[i];
+            var expectedEndpoint = webhookConfigs[i];
+
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal(expectedEndpoint.Url, request.RequestUri!);
+            Assert.Equal("application/json", request.Content!.Headers.ContentType!.MediaType);
+
+            var actualJsonPayload = await request.Content.ReadAsStringAsync();
+            Assert.Equal(expectedJsonPayload, actualJsonPayload);
+        }
     }
 
     [Fact]
@@ -173,7 +184,7 @@ public class WebhookServiceTests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
             .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
 
         var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
         var paymentRequest = CreateTestPaymentRequest();
@@ -205,7 +216,7 @@ public class WebhookServiceTests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
             .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequests.Add(req))
-            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
 
         var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
         var paymentRequest = CreateTestPaymentRequest();

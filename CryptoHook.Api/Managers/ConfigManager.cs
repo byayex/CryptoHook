@@ -12,6 +12,8 @@ public class ConfigManager
 
     public ConfigManager(IOptions<CurrencyConfigList> currencyConfigList, ILogger<ConfigManager> logger)
     {
+        ArgumentNullException.ThrowIfNull(currencyConfigList);
+
         _logger = logger;
         _currencyConfigList = currencyConfigList.Value;
 

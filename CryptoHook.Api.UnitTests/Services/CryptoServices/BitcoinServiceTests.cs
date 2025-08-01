@@ -43,7 +43,7 @@ public class BitcoinServiceTests
         return new PaymentRequest
         {
             Id = Guid.NewGuid(),
-            Status = PaymentStatusEnum.Pending,
+            Status = PaymentStatus.Pending,
             AmountExpected = 100000,
             AmountPaid = 0,
             ConfirmationCount = 0,
@@ -95,7 +95,7 @@ public class BitcoinServiceTests
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.Pending, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Pending, paymentRequest.Status);
 
         // Simulate error thrown by provider
         _dataProvider
@@ -131,7 +131,7 @@ public class BitcoinServiceTests
 
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
         Assert.NotNull(paymentRequest);
-        Assert.Equal(PaymentStatusEnum.Expired, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Expired, paymentRequest.Status);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
 
         // Simulate error thrown by provider
@@ -176,7 +176,7 @@ public class BitcoinServiceTests
         // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.Confirmed, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Confirmed, paymentRequest.Status);
         Assert.Equal(testPaymentRequest.AmountExpected, paymentRequest.AmountPaid);
         Assert.Equal(1u, paymentRequest.ConfirmationCount);
         Assert.Equal("test-tx-id-123", paymentRequest.TransactionId);
@@ -213,7 +213,7 @@ public class BitcoinServiceTests
         // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.Paid, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Paid, paymentRequest.Status);
         Assert.Equal(testPaymentRequest.AmountExpected, paymentRequest.AmountPaid);
         Assert.Equal(1u, paymentRequest.ConfirmationCount);
         Assert.Equal("test-tx-id-123", paymentRequest.TransactionId);
@@ -249,7 +249,7 @@ public class BitcoinServiceTests
         // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.Underpaid, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Underpaid, paymentRequest.Status);
         Assert.Equal(50000, paymentRequest.AmountPaid);
         Assert.Equal(1u, paymentRequest.ConfirmationCount);
         Assert.Equal("test-tx-id-123", paymentRequest.TransactionId);
@@ -285,7 +285,7 @@ public class BitcoinServiceTests
         // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.Overpaid, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Overpaid, paymentRequest.Status);
         Assert.Equal(150000, paymentRequest.AmountPaid);
         Assert.Equal(1u, paymentRequest.ConfirmationCount);
         Assert.Equal("test-tx-id-123", paymentRequest.TransactionId);
@@ -330,7 +330,7 @@ public class BitcoinServiceTests
         // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatusEnum.MultipleTransactions, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.MultipleTransactions, paymentRequest.Status);
         Assert.Equal(100000, paymentRequest.AmountPaid); // Sum of both transactions
         Assert.Equal(0u, paymentRequest.ConfirmationCount); // Set to 0 for multiple transactions
         Assert.Equal("", paymentRequest.TransactionId); // Empty for multiple transactions

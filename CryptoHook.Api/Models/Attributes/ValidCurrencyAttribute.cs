@@ -4,10 +4,12 @@ using CryptoHook.Api.Models.Configs;
 
 namespace CryptoHook.Api.Models.Attributes;
 
-public class ValidCurrencyAttribute : ValidationAttribute
+public sealed class ValidCurrencyAttribute : ValidationAttribute
 {
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
+        ArgumentNullException.ThrowIfNull(validationContext);
+
         if (value is not CurrencyConfig config)
         {
             return new ValidationResult("The configuration must be of type CurrencyConfig.");
@@ -40,12 +42,9 @@ public class ValidCurrencyAttribute : ValidationAttribute
         var amounts = config.Confirmations.Select(c => c.Amount).ToList();
         var distinctAmounts = amounts.Distinct().ToList();
 
-        if (distinctAmounts.Count != amounts.Count)
-        {
-            return new ValidationResult("Confirmations must have unique Amount values.", [nameof(config.Confirmations)]);
-        }
-
-        return ValidationResult.Success;
+        return distinctAmounts.Count != amounts.Count
+            ? new ValidationResult("Confirmations must have unique Amount values.", [nameof(config.Confirmations)])
+            : ValidationResult.Success;
     }
 
     public override string FormatErrorMessage(string name)

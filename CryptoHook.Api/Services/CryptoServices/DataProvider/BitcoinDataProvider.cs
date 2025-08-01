@@ -1,6 +1,7 @@
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
 using NBitcoin;
+using System.Globalization;
 using System.Numerics;
 
 namespace CryptoHook.Api.Services.CryptoServices.DataProvider;
@@ -20,7 +21,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         if (_network == null)
         {
             _logger.LogError("Invalid network specified: {Network} for Symbol {Symbol}", CurrencyConfig.Network, CurrencyConfig.Symbol);
-            throw new ArgumentException($"Invalid network: {CurrencyConfig.Network}", nameof(CurrencyConfig.Network));
+            throw new ArgumentException($"Invalid network: {CurrencyConfig.Network}", nameof(address));
         }
 
         List<Transaction> bitcoinTransactions;
@@ -38,7 +39,9 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         foreach (var tx in bitcoinTransactions)
         {
             if (paymentTransactions.Count >= limit)
+            {
                 break;
+            }
 
             var txId = tx.GetHash().ToString();
             uint confirmations;
@@ -56,11 +59,12 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
                 .Where(o =>
                 {
                     if (o.ScriptPubKey is null)
+                    {
                         return false;
+                    }
+
                     var destinationAddress = o.ScriptPubKey.GetDestinationAddress(Network.GetNetwork(CurrencyConfig.Network) ?? Network.Main);
-                    if (destinationAddress is null)
-                        return false;
-                    return destinationAddress.ToString() == address;
+                    return destinationAddress is not null && destinationAddress.ToString() == address;
                 })
                 .Sum(o => o.Value.ToUnit(MoneyUnit.Satoshi));
 
@@ -87,7 +91,9 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
         var txsUrl = $"{apiBaseUrl}/address/{address}/txs";
 
-        var response = await _httpClientFactory.CreateClient().GetAsync(txsUrl);
+        using var httpClient = _httpClientFactory.CreateClient();
+
+        var response = await httpClient.GetAsync(txsUrl);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Could not fetch transactions for {Address}. Status: {StatusCode}", address, response.StatusCode);
@@ -110,7 +116,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var transactions = new List<Transaction>();
         foreach (var txId in txIds)
         {
-            var txHex = await _httpClientFactory.CreateClient().GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
+            var txHex = await httpClient.GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
             transactions.Add(Transaction.Parse(txHex, network));
         }
         return transactions;
@@ -122,7 +128,8 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
 
         var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
-        var response = await _httpClientFactory.CreateClient().GetAsync(txStatusUrl);
+        using var httpClient = _httpClientFactory.CreateClient();
+        var response = await httpClient.GetAsync(txStatusUrl);
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Could not fetch transaction status for {TxId}. Status: {StatusCode}", txId, response.StatusCode);
@@ -140,8 +147,8 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
 
         var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
-        var currentHeightStr = await _httpClientFactory.CreateClient().GetStringAsync(tipHeightUrl);
-        var currentHeight = uint.Parse(currentHeightStr);
+        var currentHeightStr = await httpClient.GetStringAsync(tipHeightUrl);
+        var currentHeight = uint.Parse(currentHeightStr, CultureInfo.InvariantCulture);
 
         return currentHeight - txBlockHeight + 1;
     }

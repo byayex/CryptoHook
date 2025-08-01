@@ -5,7 +5,7 @@ namespace CryptoHook.Api.Models.Configs;
 public class WebhookConfig
 {
     [Required]
-    public required string Url { get; set; }
+    public required Uri Url { get; set; }
 
     [Required]
     public required string Secret { get; set; }

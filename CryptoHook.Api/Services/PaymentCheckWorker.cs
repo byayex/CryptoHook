@@ -1,15 +1,9 @@
-namespace CryptoHook.Api.Services;
-
-using System.Threading;
-using System.Threading.Tasks;
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Models.Enums;
-using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+
+namespace CryptoHook.Api.Services;
 
 public class PaymentCheckWorker(
     ILogger<PaymentCheckWorker> logger,
@@ -50,7 +44,7 @@ public class PaymentCheckWorker(
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync(stoppingToken);
 
         var paymentsToCheck = await dbContext.PaymentRequests
-            .Where(p => p.Status == PaymentStatusEnum.Pending || p.Status == PaymentStatusEnum.Paid)
+            .Where(p => p.Status == PaymentStatus.Pending || p.Status == PaymentStatus.Paid)
             .ToListAsync(stoppingToken);
 
         if (paymentsToCheck.Count == 0)
@@ -76,7 +70,9 @@ public class PaymentCheckWorker(
             foreach (var request in group)
             {
                 if (stoppingToken.IsCancellationRequested)
+                {
                     return;
+                }
 
                 var result = await cryptoService.CheckTransactionStatus(request);
 

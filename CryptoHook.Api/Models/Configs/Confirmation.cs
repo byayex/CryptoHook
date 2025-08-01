@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 
 namespace CryptoHook.Api.Models.Configs;
@@ -17,7 +18,7 @@ public class Confirmation
     /// </summary>
     public required BigInteger Amount
     {
-        get => BigInteger.Parse(MinAmount ?? "0");
-        set => MinAmount = value.ToString();
+        get => BigInteger.Parse(MinAmount ?? "0", CultureInfo.InvariantCulture);
+        set => MinAmount = value.ToString(CultureInfo.InvariantCulture);
     }
 }

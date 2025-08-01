@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -15,6 +16,8 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
 
     public async Task NotifyPaymentChange(PaymentRequest payload)
     {
+        ArgumentNullException.ThrowIfNull(payload);
+
         if (_webhookConfigs is null || _webhookConfigs.Count == 0)
         {
             return;
@@ -26,14 +29,18 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
 
         _logger.LogDebug("Webhook payload: {Payload}", jsonPayload);
 
+        using var httpClient = _httpClientFactory.CreateClient();
+
+        // Disableing CA2000 warning for this example, as the content is disposed by the HttpClient
+#pragma warning disable CA2000
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+#pragma warning restore CA2000
+
         foreach (var webhook in _webhookConfigs)
         {
             _logger.LogInformation("Sending webhook notification to {Url}", webhook.Url);
 
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-            var httpClient = _httpClientFactory.CreateClient();
-
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
             var requestId = Guid.NewGuid().ToString();
 
             var signature = GenerateHmacSignature(jsonPayload, timestamp, requestId, webhook.Secret);
@@ -72,6 +79,6 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
 
         using var hmac = new HMACSHA256(keyBytes);
         var hashBytes = hmac.ComputeHash(payloadBytes);
-        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+        return Convert.ToHexString(hashBytes).ToUpperInvariant();
     }
 }

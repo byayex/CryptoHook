@@ -42,7 +42,7 @@ public class PaymentCheckWorkerTests
     }
 
     private static PaymentRequest CreateTestPaymentRequest(
-        PaymentStatusEnum status = PaymentStatusEnum.Pending,
+        PaymentStatus status = PaymentStatus.Pending,
         string currencySymbol = "BTC",
         string network = "Main",
         BigInteger? amountExpected = null,
@@ -92,7 +92,7 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithOnlyExpiredPayments_DoesNothing()
     {
         // Arrange
-        var expiredPayment = CreateTestPaymentRequest(PaymentStatusEnum.Expired);
+        var expiredPayment = CreateTestPaymentRequest(PaymentStatus.Expired);
         await SeedDatabase(expiredPayment);
 
         var cancellationToken = CancellationToken.None;
@@ -109,11 +109,11 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithPendingPayments_CallsCryptoService()
     {
         // Arrange
-        var pendingPayment = CreateTestPaymentRequest(PaymentStatusEnum.Pending);
+        var pendingPayment = CreateTestPaymentRequest(PaymentStatus.Pending);
         await SeedDatabase(pendingPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
-        var updatedPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid, amountPaid: 100000);
+        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid, amountPaid: 100000);
         updatedPayment.Id = pendingPayment.Id;
 
         mockCryptoService.Setup(s => s.CheckTransactionStatus(It.IsAny<PaymentRequest>()))
@@ -136,11 +136,11 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithStatusChange_CallsWebhookService()
     {
         // Arrange
-        var pendingPayment = CreateTestPaymentRequest(PaymentStatusEnum.Pending);
+        var pendingPayment = CreateTestPaymentRequest(PaymentStatus.Pending);
         await SeedDatabase(pendingPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
-        var updatedPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid, amountPaid: BigInteger.Parse("100000"));
+        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid, amountPaid: BigInteger.Parse("100000"));
         updatedPayment.Id = pendingPayment.Id;
 
         mockCryptoService.Setup(s => s.CheckTransactionStatus(It.IsAny<PaymentRequest>()))
@@ -155,18 +155,18 @@ public class PaymentCheckWorkerTests
         await _worker.CheckPayments(cancellationToken);
 
         // Assert
-        _mockWebhookService.Verify(w => w.NotifyPaymentChange(It.Is<PaymentRequest>(p => p.Status == PaymentStatusEnum.Paid)), Times.Once);
+        _mockWebhookService.Verify(w => w.NotifyPaymentChange(It.Is<PaymentRequest>(p => p.Status == PaymentStatus.Paid)), Times.Once);
     }
 
     [Fact]
     public async Task CheckPayments_WithConfirmationCountChange_CallsWebhookService()
     {
         // Arrange
-        var paidPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid, confirmationCount: 1);
+        var paidPayment = CreateTestPaymentRequest(PaymentStatus.Paid, confirmationCount: 1);
         await SeedDatabase(paidPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
-        var updatedPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid, confirmationCount: 2);
+        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid, confirmationCount: 2);
         updatedPayment.Id = paidPayment.Id;
 
         mockCryptoService.Setup(s => s.CheckTransactionStatus(It.IsAny<PaymentRequest>()))
@@ -188,7 +188,7 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithNoChanges_DoesNotCallWebhookService()
     {
         // Arrange
-        var paidPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid, confirmationCount: 1);
+        var paidPayment = CreateTestPaymentRequest(PaymentStatus.Paid, confirmationCount: 1);
         await SeedDatabase(paidPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
@@ -212,8 +212,8 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithMultipleCurrencies_GroupsBySymbolAndNetwork()
     {
         // Arrange
-        var btcPayment = CreateTestPaymentRequest(PaymentStatusEnum.Pending, "BTC", "Main");
-        var btcTestnetPayment = CreateTestPaymentRequest(PaymentStatusEnum.Pending, "BTC", "Testnet");
+        var btcPayment = CreateTestPaymentRequest(PaymentStatus.Pending, "BTC", "Main");
+        var btcTestnetPayment = CreateTestPaymentRequest(PaymentStatus.Pending, "BTC", "Testnet");
         await SeedDatabase(btcPayment, btcTestnetPayment);
 
         var mockBtcService = new Mock<ICryptoService>();
@@ -247,7 +247,7 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithUnsupportedCurrency_SkipsPayment()
     {
         // Arrange
-        var unsupportedPayment = CreateTestPaymentRequest(PaymentStatusEnum.Pending, "UNSUPPORTED", "Main");
+        var unsupportedPayment = CreateTestPaymentRequest(PaymentStatus.Pending, "UNSUPPORTED", "Main");
         await SeedDatabase(unsupportedPayment);
 
         _mockCryptoServiceFactory.Setup(f => f.GetService("UNSUPPORTED", "Main"))
@@ -267,14 +267,14 @@ public class PaymentCheckWorkerTests
     {
         // Arrange
         var originalPayment = CreateTestPaymentRequest(
-            PaymentStatusEnum.Pending,
+            PaymentStatus.Pending,
             amountPaid: BigInteger.Zero,
             confirmationCount: 0);
         await SeedDatabase(originalPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
         var updatedPayment = CreateTestPaymentRequest(
-            PaymentStatusEnum.Paid,
+            PaymentStatus.Paid,
             amountPaid: 100000,
             confirmationCount: 1);
         updatedPayment.Id = originalPayment.Id;
@@ -295,7 +295,7 @@ public class PaymentCheckWorkerTests
         using var dbContext = new DatabaseContext(_dbContextOptions);
         var dbPayment = await dbContext.PaymentRequests.FindAsync(originalPayment.Id);
         Assert.NotNull(dbPayment);
-        Assert.Equal(PaymentStatusEnum.Paid, dbPayment.Status);
+        Assert.Equal(PaymentStatus.Paid, dbPayment.Status);
         Assert.Equal(100000, dbPayment.AmountPaid);
         Assert.Equal((uint)1, dbPayment.ConfirmationCount);
         Assert.Equal("test-tx-id", dbPayment.TransactionId);
@@ -306,8 +306,8 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_WithMultiplePaymentsForSameCurrency_ProcessesAll()
     {
         // Arrange
-        var payment1 = CreateTestPaymentRequest(PaymentStatusEnum.Pending, "BTC", "Main");
-        var payment2 = CreateTestPaymentRequest(PaymentStatusEnum.Pending, "BTC", "Main");
+        var payment1 = CreateTestPaymentRequest(PaymentStatus.Pending, "BTC", "Main");
+        var payment2 = CreateTestPaymentRequest(PaymentStatus.Pending, "BTC", "Main");
         await SeedDatabase(payment1, payment2);
 
         var mockCryptoService = new Mock<ICryptoService>();
@@ -316,7 +316,7 @@ public class PaymentCheckWorkerTests
             .ReturnsAsync(new PaymentRequest
             {
                 Id = payment1.Id,
-                Status = PaymentStatusEnum.Paid,
+                Status = PaymentStatus.Paid,
                 AmountExpected = payment1.AmountExpected,
                 AmountPaid = BigInteger.Parse("100000"),
                 ConfirmationCount = 1,
@@ -331,7 +331,7 @@ public class PaymentCheckWorkerTests
             .ReturnsAsync(new PaymentRequest
             {
                 Id = payment2.Id,
-                Status = PaymentStatusEnum.Paid,
+                Status = PaymentStatus.Paid,
                 AmountExpected = payment2.AmountExpected,
                 AmountPaid = BigInteger.Parse("100000"),
                 ConfirmationCount = 1,
@@ -361,11 +361,11 @@ public class PaymentCheckWorkerTests
     public async Task CheckPayments_SavesChangesToDatabase()
     {
         // Arrange
-        var payment = CreateTestPaymentRequest(PaymentStatusEnum.Pending);
+        var payment = CreateTestPaymentRequest(PaymentStatus.Pending);
         await SeedDatabase(payment);
 
         var mockCryptoService = new Mock<ICryptoService>();
-        var updatedPayment = CreateTestPaymentRequest(PaymentStatusEnum.Paid);
+        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid);
         updatedPayment.Id = payment.Id;
 
         mockCryptoService.Setup(s => s.CheckTransactionStatus(It.IsAny<PaymentRequest>()))
@@ -383,6 +383,6 @@ public class PaymentCheckWorkerTests
         using var dbContext = new DatabaseContext(_dbContextOptions);
         var dbPayment = await dbContext.PaymentRequests.FindAsync(payment.Id);
         Assert.NotNull(dbPayment);
-        Assert.Equal(PaymentStatusEnum.Paid, dbPayment.Status);
+        Assert.Equal(PaymentStatus.Paid, dbPayment.Status);
     }
 }

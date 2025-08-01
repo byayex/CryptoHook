@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
@@ -21,6 +22,8 @@ public class BitcoinService : ICryptoService
 
     public BitcoinService(CurrencyConfig currencyConfig, ILogger<BitcoinService> logger, ICryptoDataProvider dataProvider)
     {
+        ArgumentNullException.ThrowIfNull(currencyConfig);
+
         _logger = logger;
         _dataProvider = dataProvider;
 
@@ -55,8 +58,7 @@ public class BitcoinService : ICryptoService
 
         try
         {
-            // Derives receiving addresses using BIP84 path (m/0/index)
-            var derivationPath = new KeyPath(string.Format(DerivationPathFormat, index));
+            var derivationPath = new KeyPath(string.Format(CultureInfo.InvariantCulture, DerivationPathFormat, index));
             var childPubKey = _extPubKey.Derive(derivationPath).PubKey;
             var address = childPubKey.GetAddress(ScriptPubKeyType.Segwit, _network);
 
@@ -74,6 +76,8 @@ public class BitcoinService : ICryptoService
 
     public async Task<PaymentRequest> CheckTransactionStatus(PaymentRequest request)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         _logger.LogInformation("Checking transaction status for {Symbol} at address {Address}", Symbol, request.ReceivingAddress);
 
         var transactions = new List<PaymentTransaction>();
@@ -109,21 +113,21 @@ public class BitcoinService : ICryptoService
             checkedPayment.TransactionId = "";
             checkedPayment.AmountPaid = transactions.Aggregate(BigInteger.Zero, (acc, t) => acc + t.AmountPaid);
             checkedPayment.ConfirmationCount = 0; // Confirmation count is not needed with multiple transactions (we dont accept multiple transactions)
-            checkedPayment.SetStatus(PaymentStatusEnum.MultipleTransactions);
+            checkedPayment.SetStatus(PaymentStatus.MultipleTransactions);
             return checkedPayment;
         }
 
         if (transactions.Count <= 0 && request.ExpiresAt < DateTime.UtcNow)
         {
             _logger.LogInformation("Payment request for {Symbol} at {Address} has expired. | Timeout (in minutes): {Timeout}", Symbol, request.ReceivingAddress, CurrencyConfig.InitialPaymentTimeout);
-            checkedPayment.SetStatus(PaymentStatusEnum.Expired);
+            checkedPayment.SetStatus(PaymentStatus.Expired);
             return checkedPayment;
         }
 
         if (transactions.Count <= 0)
         {
             _logger.LogInformation("No payment detected for {Symbol} at {Address}", Symbol, request.ReceivingAddress);
-            checkedPayment.SetStatus(PaymentStatusEnum.Pending);
+            checkedPayment.SetStatus(PaymentStatus.Pending);
             return checkedPayment;
         }
 
@@ -138,7 +142,7 @@ public class BitcoinService : ICryptoService
             _logger.LogWarning("Payment for {Symbol} at {Address} is below expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
                 Symbol, request.ReceivingAddress, request.AmountExpected, checkedPayment.AmountPaid);
-            checkedPayment.SetStatus(PaymentStatusEnum.Underpaid);
+            checkedPayment.SetStatus(PaymentStatus.Underpaid);
             return checkedPayment;
         }
 
@@ -147,7 +151,7 @@ public class BitcoinService : ICryptoService
             _logger.LogWarning("Payment for {Symbol} at {Address} is over expected amount. " +
                                    "Expected: {Expected}, Detected: {Detected}",
                 Symbol, request.ReceivingAddress, request.AmountExpected, checkedPayment.AmountPaid);
-            checkedPayment.SetStatus(PaymentStatusEnum.Overpaid);
+            checkedPayment.SetStatus(PaymentStatus.Overpaid);
             return checkedPayment;
         }
 
@@ -160,13 +164,13 @@ public class BitcoinService : ICryptoService
             _logger.LogInformation("Transaction for {Symbol} at {Address} has not enough confirmations. " +
                                    "Needed: {Needed}, Current: {Current}",
                 Symbol, request.ReceivingAddress, neededConfirmations, checkedPayment.ConfirmationCount);
-            checkedPayment.SetStatus(PaymentStatusEnum.Paid);
+            checkedPayment.SetStatus(PaymentStatus.Paid);
             return checkedPayment;
         }
 
         _logger.LogInformation("Transaction for {Symbol} at {Address} is fully paid with sufficient confirmations.",
             Symbol, request.ReceivingAddress);
-        checkedPayment.SetStatus(PaymentStatusEnum.Confirmed);
+        checkedPayment.SetStatus(PaymentStatus.Confirmed);
         return checkedPayment;
     }
 }

@@ -3,7 +3,7 @@ namespace CryptoHook.Api.Models.Enums;
 /// <summary>
 /// Represents the status of a payment request in its lifecycle.
 /// </summary>
-public enum PaymentStatusEnum
+public enum PaymentStatus
 {
     /// <summary>
     /// The payment request has been created and is awaiting payment.

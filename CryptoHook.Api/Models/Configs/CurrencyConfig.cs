@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using CryptoHook.Api.Models.Attributes;
 
@@ -61,12 +62,9 @@ public class CurrencyConfig
         var confirmationRule = Confirmations
             .LastOrDefault(c => paymentAmount >= c.Amount);
 
-        if (confirmationRule == null)
-        {
-            throw new InvalidOperationException("No confirmation rule found for the specified amount.");
-        }
-
-        return confirmationRule.ConfirmationsNeeded;
+        return confirmationRule == null
+            ? throw new InvalidOperationException("No confirmation rule found for the specified amount.")
+            : confirmationRule.ConfirmationsNeeded;
     }
 }
 
