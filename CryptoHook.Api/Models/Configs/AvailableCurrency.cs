@@ -10,7 +10,10 @@ public class AvailableCurrency
     public override bool Equals(object? obj)
     {
         if (obj is not AvailableCurrency other)
+        {
+
             return false;
+        }
 
         return Symbol.Equals(other.Symbol, StringComparison.OrdinalIgnoreCase) &&
                Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase) &&
