@@ -11,7 +11,6 @@ public class AvailableCurrency
     {
         if (obj is not AvailableCurrency other)
         {
-
             return false;
         }
 
