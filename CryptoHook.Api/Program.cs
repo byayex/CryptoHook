@@ -1,6 +1,7 @@
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Converters;
 using CryptoHook.Api.Services;
 using CryptoHook.Api.Services.CryptoServices.Factory;
 using Microsoft.AspNetCore.Mvc;
@@ -46,7 +47,19 @@ builder.Services.AddDbContextFactory<DatabaseContext>(options =>
 
 builder.Services.AddHttpClient();
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(gen =>
+{
+    gen.AddSchemaFilterInstance(new BigIntegerSchemaFilter());
+});
+
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 using (var scope = app.Services.CreateScope())
 {

@@ -47,7 +47,7 @@ public class BitcoinService : ICryptoService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to parse ExtPubKey for {Symbol}", Symbol);
+            _logger.LogCritical(ex, "Failed to parse ExtPubKey for {Symbol}", Symbol);
             throw;
         }
     }
