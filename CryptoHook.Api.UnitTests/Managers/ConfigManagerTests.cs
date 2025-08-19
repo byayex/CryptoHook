@@ -6,9 +6,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
-namespace CryptoHook.Api.UnitTests;
+namespace CryptoHook.Api.UnitTests.Managers;
 
-public class ConfigManagerTests : IDisposable
+public sealed class ConfigManagerTests : IDisposable
 {
     private readonly Mock<ILogger<ConfigManager>> _mockLogger;
     private readonly Mock<IOptions<CurrencyConfigList>> _mockOptions;

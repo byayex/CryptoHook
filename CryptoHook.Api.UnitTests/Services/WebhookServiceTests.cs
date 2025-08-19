@@ -1,7 +1,4 @@
-using System.Linq.Expressions;
 using System.Net;
-using System.Numerics;
-using System.Text;
 using System.Text.Json;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
@@ -134,14 +131,19 @@ public class WebhookServiceTests
         var webhookConfigs = CreateTestWebhookConfigs();
         _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
 
-        var capturedRequests = new List<HttpRequestMessage>();
+        var capturedRequestData = new List<(HttpMethod Method, Uri Uri, string ContentType, string Content)>();
         _mockHttpMessageHandler
             .Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequests.Add(req)) // Add to list
+            .Callback<HttpRequestMessage, CancellationToken>(async (req, cancellationToken) =>
+            {
+                var content = req.Content != null ? await req.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
+                var contentType = req.Content?.Headers.ContentType?.MediaType ?? string.Empty;
+                capturedRequestData.Add((req.Method, req.RequestUri!, contentType, content));
+            })
             .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
 
         var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
@@ -151,21 +153,19 @@ public class WebhookServiceTests
         await service.NotifyPaymentChange(paymentRequest);
 
         // Assert
-        Assert.Equal(webhookConfigs.Count, capturedRequests.Count);
+        Assert.Equal(webhookConfigs.Count, capturedRequestData.Count);
 
         var expectedJsonPayload = JsonSerializer.Serialize(paymentRequest);
 
-        for (int i = 0; i < capturedRequests.Count; i++)
+        for (int i = 0; i < capturedRequestData.Count; i++)
         {
-            var request = capturedRequests[i];
+            var requestData = capturedRequestData[i];
             var expectedEndpoint = webhookConfigs[i];
 
-            Assert.Equal(HttpMethod.Post, request.Method);
-            Assert.Equal(expectedEndpoint.Url, request.RequestUri!);
-            Assert.Equal("application/json", request.Content!.Headers.ContentType!.MediaType);
-
-            var actualJsonPayload = await request.Content.ReadAsStringAsync();
-            Assert.Equal(expectedJsonPayload, actualJsonPayload);
+            Assert.Equal(HttpMethod.Post, requestData.Method);
+            Assert.Equal(expectedEndpoint.Url, requestData.Uri);
+            Assert.Equal("application/json", requestData.ContentType);
+            Assert.Equal(expectedJsonPayload, requestData.Content);
         }
     }
 
@@ -197,7 +197,7 @@ public class WebhookServiceTests
         Assert.True(capturedRequest.Headers.Contains("X-Signature"));
 
         var signatureHeader = capturedRequest.Headers.GetValues("X-Signature").First();
-        Assert.StartsWith("sha256=", signatureHeader);
+        Assert.StartsWith("sha256=", signatureHeader, StringComparison.InvariantCulture);
         Assert.True(signatureHeader.Length > 7);
     }
 

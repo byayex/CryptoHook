@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Numerics;
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Models.Enums;
@@ -11,7 +12,7 @@ using Moq;
 
 namespace CryptoHook.Api.UnitTests.Services;
 
-public class PaymentCheckWorkerTests
+public sealed class PaymentCheckWorkerTests : IDisposable
 {
     private readonly Mock<ILogger<PaymentCheckWorker>> _mockLogger;
     private readonly Mock<IDbContextFactory<DatabaseContext>> _mockDbContextFactory;
@@ -39,6 +40,12 @@ public class PaymentCheckWorkerTests
             _mockDbContextFactory.Object,
             _mockCryptoServiceFactory.Object,
             _mockWebhookService.Object);
+    }
+
+    public void Dispose()
+    {
+        _worker.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private static PaymentRequest CreateTestPaymentRequest(
@@ -140,7 +147,7 @@ public class PaymentCheckWorkerTests
         await SeedDatabase(pendingPayment);
 
         var mockCryptoService = new Mock<ICryptoService>();
-        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid, amountPaid: BigInteger.Parse("100000"));
+        var updatedPayment = CreateTestPaymentRequest(PaymentStatus.Paid, amountPaid: BigInteger.Parse("100000", CultureInfo.InvariantCulture));
         updatedPayment.Id = pendingPayment.Id;
 
         mockCryptoService.Setup(s => s.CheckTransactionStatus(It.IsAny<PaymentRequest>()))
@@ -318,7 +325,7 @@ public class PaymentCheckWorkerTests
                 Id = payment1.Id,
                 Status = PaymentStatus.Paid,
                 AmountExpected = payment1.AmountExpected,
-                AmountPaid = BigInteger.Parse("100000"),
+                AmountPaid = BigInteger.Parse("100000", CultureInfo.InvariantCulture),
                 ConfirmationCount = 1,
                 ConfirmationNeeded = payment1.ConfirmationNeeded,
                 ReceivingAddress = payment1.ReceivingAddress,
@@ -333,7 +340,7 @@ public class PaymentCheckWorkerTests
                 Id = payment2.Id,
                 Status = PaymentStatus.Paid,
                 AmountExpected = payment2.AmountExpected,
-                AmountPaid = BigInteger.Parse("100000"),
+                AmountPaid = BigInteger.Parse("100000", CultureInfo.InvariantCulture),
                 ConfirmationCount = 1,
                 ConfirmationNeeded = payment2.ConfirmationNeeded,
                 ReceivingAddress = payment2.ReceivingAddress,

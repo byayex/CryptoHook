@@ -1,13 +1,19 @@
 using CryptoHook.Api.Models.Configs;
-using Newtonsoft.Json.Bson;
 
 namespace CryptoHook.Api.UnitTests.Models.Configs;
 
-public class CurrencyConfigTests : IDisposable
+public sealed class CurrencyConfigTests : IDisposable
 {
 
-    private static CurrencyConfig CreateValidConfig(string name = "Bitcoin", string symbol = "BTC", string network = "Main")
+    private static CurrencyConfig CreateValidConfig(string name = "Bitcoin", string symbol = "BTC", string network = "Main", List<Confirmation>? confirmations = null)
     {
+        var defaultConfirmations = new List<Confirmation>
+        {
+            new() { Amount = 0, ConfirmationsNeeded = 1 },
+            new() { Amount = 100000, ConfirmationsNeeded = 3 },
+            new() { Amount = 500000, ConfirmationsNeeded = 9 }
+        };
+
         return new CurrencyConfig
         {
             Name = name,
@@ -16,12 +22,7 @@ public class CurrencyConfigTests : IDisposable
             IsEnabled = true,
             InitialPaymentTimeout = 30,
             ExtPubKey = "xpub-test",
-            Confirmations =
-                [
-                    new() { Amount = 0, ConfirmationsNeeded = 1 },
-                    new() { Amount = 100000, ConfirmationsNeeded = 3 },
-                    new() { Amount = 500000, ConfirmationsNeeded = 9 }
-                ]
+            Confirmations = confirmations ?? defaultConfirmations
         };
     }
 
@@ -83,8 +84,7 @@ public class CurrencyConfigTests : IDisposable
     public void GetConfirmationsNeeded_EmptyList_ThrowsException()
     {
         // Arrange
-        var config = CreateValidConfig();
-        config.Confirmations = [];
+        var config = CreateValidConfig(confirmations: []);
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => config.GetConfirmationsNeeded(5000));

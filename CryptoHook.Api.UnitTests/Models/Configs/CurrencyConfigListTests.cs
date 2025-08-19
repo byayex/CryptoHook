@@ -4,7 +4,7 @@ using CryptoHook.Api.Models.Consts;
 
 namespace CryptoHook.Api.UnitTests.Models.Configs;
 
-public class CurrencyConfigListTests : IDisposable
+public sealed class CurrencyConfigListTests : IDisposable
 {
     private readonly Func<IReadOnlyList<AvailableCurrency>> _originalGetCurrencies;
 

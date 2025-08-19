@@ -29,13 +29,6 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
 
         _logger.LogDebug("Webhook payload: {Payload}", jsonPayload);
 
-        using var httpClient = _httpClientFactory.CreateClient();
-
-        // Disableing CA2000 warning for this example, as the content is disposed by the HttpClient
-#pragma warning disable CA2000
-        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-#pragma warning restore CA2000
-
         foreach (var webhook in _webhookConfigs)
         {
             _logger.LogInformation("Sending webhook notification to {Url}", webhook.Url);
@@ -45,12 +38,14 @@ public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<Webho
 
             var signature = GenerateHmacSignature(jsonPayload, timestamp, requestId, webhook.Secret);
 
+            using var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("X-Signature", $"sha256={signature}");
             httpClient.DefaultRequestHeaders.Add("X-Timestamp", timestamp);
             httpClient.DefaultRequestHeaders.Add("X-Request-ID", requestId);
 
             try
             {
+                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
                 var response = await httpClient.PostAsync(webhook.Url, content);
                 response.EnsureSuccessStatusCode();
                 _logger.LogInformation("Successfully sent webhook notification to {Url}", webhook.Url);

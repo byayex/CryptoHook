@@ -26,4 +26,10 @@
     <ProjectReference Include="..\CryptoHook.Api\CryptoHook.Api.csproj" />
   </ItemGroup>
 
+  <PropertyGroup>
+      <EnableNETAnalyzers>true</EnableNETAnalyzers>
+      <AnalysisMode>All</AnalysisMode>
+      <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
 </Project>
