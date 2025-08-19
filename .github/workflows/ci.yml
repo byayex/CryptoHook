@@ -8,7 +8,7 @@ on:
 
 env:
   DOTNET_VERSION: "9.0.x"
-  PROJECT_PATH: "./CryptoHook.Api"
+  SOLUTION_PATH: "./CryptoHook.Api/CryptoHook.Api.sln"
 
 jobs:
   build-and-test:
@@ -33,7 +33,7 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Run tests
-        run: dotnet test --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --logger trx --results-directory ./TestResults
+        run: dotnet test ${{ env.SOLUTION_PATH }} --configuration Release --collect:"XPlat Code Coverage" --logger trx --results-directory ./TestResults
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -71,11 +71,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.PROJECT_PATH }}
-
       - name: Run .NET analyzers
-        run: dotnet build ${{ env.PROJECT_PATH }} --configuration Release --verbosity normal
+        run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release
 
       - name: Check for vulnerabilities
-        run: dotnet list ${{ env.PROJECT_PATH }} package --vulnerable --include-transitive
+        run: dotnet list ${{ env.SOLUTION_PATH }} package --vulnerable --include-transitive
