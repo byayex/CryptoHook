@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Text;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
@@ -18,7 +19,7 @@ public class BitcoinService : ICryptoService
     public string Symbol => "BTC";
 
     // BIP84 derivation path for native SegWit addresses: m/0/index
-    private const string DerivationPathFormat = "0/{0}";
+    private static readonly CompositeFormat DerivationPathFormat = CompositeFormat.Parse("0/{0}");
 
     public BitcoinService(CurrencyConfig currencyConfig, ILogger<BitcoinService> logger, ICryptoDataProvider dataProvider)
     {

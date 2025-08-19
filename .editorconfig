@@ -36,3 +36,6 @@ dotnet_diagnostic.CA1031.severity = none
 
 # IDE0160: Convert to block scoped namespace
 dotnet_diagnostic.IDE0160.severity = none
+
+# CA1707: Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none

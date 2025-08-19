@@ -7,9 +7,15 @@ namespace CryptoHook.Api.Models.Attributes.Tests;
 public class ValidCurrencyAttributeTest
 {
     // Helper to create a valid CurrencyConfig
-    private static CurrencyConfig CreateValidConfig()
+    private static CurrencyConfig CreateValidConfig(List<Confirmation>? confirmations = null)
     {
         var available = AvailableCurrencies.GetCurrencies()[0];
+        var defaultConfirmations = new List<Confirmation>
+        {
+            new() { Amount = 0, ConfirmationsNeeded = 1 },
+            new() { Amount = 100000, ConfirmationsNeeded = 3 }
+        };
+
         return new CurrencyConfig
         {
             Name = available.Name,
@@ -18,11 +24,7 @@ public class ValidCurrencyAttributeTest
             IsEnabled = true,
             InitialPaymentTimeout = 30,
             ExtPubKey = "xpub-test",
-            Confirmations =
-                [
-                    new() { Amount = 0, ConfirmationsNeeded = 1 },
-                    new() { Amount = 100000, ConfirmationsNeeded = 3 }
-                ]
+            Confirmations = confirmations ?? defaultConfirmations
         };
     }
 
@@ -92,8 +94,7 @@ public class ValidCurrencyAttributeTest
     {
         // Arrange
         var attribute = new ValidCurrencyAttribute();
-        var config = CreateValidConfig();
-        config.Confirmations = [];
+        var config = CreateValidConfig([]);
         var context = new ValidationContext(config);
 
         // Act
@@ -108,11 +109,11 @@ public class ValidCurrencyAttributeTest
     {
         // Arrange
         var attribute = new ValidCurrencyAttribute();
-        var config = CreateValidConfig();
-        config.Confirmations =
-            [
-                new() { Amount = 5000, ConfirmationsNeeded = 2 }
-            ];
+        var confirmations = new List<Confirmation>
+        {
+            new() { Amount = 5000, ConfirmationsNeeded = 2 }
+        };
+        var config = CreateValidConfig(confirmations);
         var context = new ValidationContext(config);
 
         // Act
@@ -127,13 +128,13 @@ public class ValidCurrencyAttributeTest
     {
         // Arrange
         var attribute = new ValidCurrencyAttribute();
-        var config = CreateValidConfig();
-        config.Confirmations =
-            [
+        var confirmations = new List<Confirmation>
+            {
                 new() { Amount = 0, ConfirmationsNeeded = 1 },
                 new() { Amount = 500, ConfirmationsNeeded = 3 },
                 new() { Amount = 500, ConfirmationsNeeded = 6 }
-            ];
+            };
+        var config = CreateValidConfig(confirmations);
         var context = new ValidationContext(config);
 
         // Act
