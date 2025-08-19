@@ -27,10 +27,10 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
-    <PropertyGroup>
-        <EnableNETAnalyzers>true</EnableNETAnalyzers>
-        <AnalysisMode>All</AnalysisMode>
-        <AnalysisLevel>latest</AnalysisLevel>
-    </PropertyGroup>
+  <PropertyGroup>
+      <EnableNETAnalyzers>true</EnableNETAnalyzers>
+      <AnalysisMode>All</AnalysisMode>
+      <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
 
 </Project>

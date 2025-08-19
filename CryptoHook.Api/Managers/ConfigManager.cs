@@ -17,11 +17,6 @@ public class ConfigManager
         _logger = logger;
         _currencyConfigList = currencyConfigList.Value;
 
-        foreach (var config in _currencyConfigList)
-        {
-            config.Confirmations = [.. config.Confirmations.OrderBy(c => c.Amount)];
-        }
-
         UsableCurrencies = [.. AvailableCurrencies.GetCurrencies()
             .Where(c => _currencyConfigList.Any(cc =>
                 cc.Symbol.Equals(c.Symbol, StringComparison.OrdinalIgnoreCase)

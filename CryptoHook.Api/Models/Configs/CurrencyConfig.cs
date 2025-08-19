@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+using System.Text.Json.Serialization;
 using CryptoHook.Api.Models.Attributes;
 
 namespace CryptoHook.Api.Models.Configs;
@@ -46,11 +47,17 @@ public class CurrencyConfig
     [Required]
     public required string Network { get; set; }
 
+    [JsonIgnore]
+    private IList<Confirmation> _confirmations = [];
+
     /// <summary>
     /// Gets or sets the list of confirmation requirements for different transaction amounts.
     /// </summary>
     [Required]
-    public required IList<Confirmation> Confirmations { get; set; }
+    public required IList<Confirmation> Confirmations
+    {
+        get => _confirmations; init => _confirmations = [.. value.OrderBy(c => c.Amount)];
+    }
 
     public uint GetConfirmationsNeeded(BigInteger paymentAmount)
     {
