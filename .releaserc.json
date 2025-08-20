@@ -1,0 +1,15 @@
+{
+    "branches": [
+        "main"
+    ],
+    "plugins": [
+        "@semantic-release/commit-analyzer",
+        "@semantic-release/release-notes-generator",
+        [
+            "@semantic-release/github",
+            {
+                "releaseBodyTemplate": "## 🐳 Docker Package\n\n**Docker Image**: `ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:v<%= nextRelease.version %>`\n\n```bash\ndocker pull ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:v<%= nextRelease.version %>\n```\n\n**Available tags**:\n- `ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:latest`\n- `ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:v<%= nextRelease.version.split('.')[0] %>`\n- `ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:v<%= nextRelease.version.split('.')[0] %>.<%= nextRelease.version.split('.')[1] %>`\n- `ghcr.io/<%= env.GITHUB_REPOSITORY.toLowerCase() %>:v<%= nextRelease.version %>`\n\n##  Changes\n\n<% commits.forEach(function(commit) { %><% if (commit.subject) { %>- <% if (commit.scope) { %>**<%= commit.scope %>:** <% } %><%= commit.subject %> ([<%= commit.shortHash %>](https://github.com/<%= env.GITHUB_REPOSITORY %>/commit/<%= commit.hash %>))\n<% } %><% }); %>\n---\n\n**Full Changelog**: https://github.com/<%= env.GITHUB_REPOSITORY %>/compare/<%= lastRelease.gitTag %>...<%= nextRelease.gitTag %>"
+            }
+        ]
+    ]
+}

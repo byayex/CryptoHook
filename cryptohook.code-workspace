@@ -1,0 +1,58 @@
+{
+    "folders": [
+        {
+            "name": "all",
+            "path": "."
+        },
+        {
+            "name": "Github",
+            "path": ".github"
+        },
+        {
+            "name": "API",
+            "path": "CryptoHook.Api"
+        },
+        {
+            "name": "Unit Tests",
+            "path": "CryptoHook.Api.UnitTests"
+        },
+    ],
+    "settings": {
+        "files.exclude": {
+            "**/.git": true,
+            "**/.svn": true,
+            "**/.hg": true,
+            "**/.DS_Store": true,
+            "**/Thumbs.db": true,
+            "**/bin": true,
+            "**/obj": true,
+            "**/.vs": true,
+            "CryptoHook.Api": true,
+            "CryptoHook.Api.UnitTests": true,
+            ".github": true,
+        },
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "cSpell.language": "de,en",
+        "dotnet.defaultSolution": "./CryptoHook.Api/CryptoHook.Api.sln",
+        "editor.tabSize": 4,
+        "files.eol": "\n",
+        "files.encoding": "utf8",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always",
+        },
+        "[csharp]": {
+            "editor.defaultFormatter": "ms-dotnettools.csharp",
+            "editor.foldingImportsByDefault": true
+        },
+    },
+    "extensions": {
+        "recommendations": [
+            "esbenp.prettier-vscode",
+            "streetsidesoftware.code-spell-checker",
+            "ms-dotnettools.csharp",
+            "ms-dotnettools.csdevkit",
+            "humao.rest-client"
+        ]
+    }
+}

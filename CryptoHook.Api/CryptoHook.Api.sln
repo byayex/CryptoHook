@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35514.174 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoHook.Api", "CryptoHook.Api.csproj", "{9A76E0D7-E2D9-4000-AEFA-28E127ABABCA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CryptoHook.Api.UnitTests", "..\CryptoHook.Api.UnitTests\CryptoHook.Api.UnitTests.csproj", "{E7C69B6E-BB87-4D1A-A7DD-07007729FDDC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9A76E0D7-E2D9-4000-AEFA-28E127ABABCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A76E0D7-E2D9-4000-AEFA-28E127ABABCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A76E0D7-E2D9-4000-AEFA-28E127ABABCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A76E0D7-E2D9-4000-AEFA-28E127ABABCA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E7C69B6E-BB87-4D1A-A7DD-07007729FDDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E7C69B6E-BB87-4D1A-A7DD-07007729FDDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E7C69B6E-BB87-4D1A-A7DD-07007729FDDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E7C69B6E-BB87-4D1A-A7DD-07007729FDDC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

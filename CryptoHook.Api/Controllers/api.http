@@ -1,0 +1,13 @@
+# Request to get all available currencies
+GET http://localhost:5116/api/v1/currencies
+
+###
+
+# Request to create a new payment request
+POST http://localhost:5116/api/v1/payments/btc/main/500000
+
+###
+
+# Request to get a specific payment request by ID
+GET http://localhost:5116/api/v1/payments/59d21b46-717d-406f-847c-35099f367f9f
+
