@@ -5,7 +5,7 @@
 
 ---
 
-### ✨ Project Status: Low Maintenance & Community Driven
+## ✨ Project Status: Low Maintenance & Community Driven
 
 **This project is currently in a low-maintenance mode, and community contributions are welcome!**
 
@@ -25,31 +25,33 @@ The existing code is from an early development stage and should be considered a 
 
 The following list outlines the features and improvements that were originally planned for CryptoHook. This can serve as inspiration or a starting point for anyone interested in contributing to the project.
 
-- [ ] **Broader Cryptocurrency Support**: Extend beyond the initial set of currencies.
-- [ ] **CI/CD Integration**: Implement a pipeline for automated testing and deployment.
+- [ ] **Broader Cryptocurrency Support**: Extend beyond the initial set of currencies (only bitcoin currently).
+- [x] **CI/CD Integration**: Implement a pipeline for automated testing and deployment.
 - [ ] **Architectural Shift**: Transition from REST to RPC for improved performance (for checking for payments on the blockchain).
-- [ ] **Enhanced Security**: Implement more robust authentication and security hardening.
-- [ ] **Docker Support**: Provide a `Dockerfile` for easy, containerized deployment.
+- [x] **Enhanced Security**: Implement more robust authentication and security hardening.
+- [x] **Docker Support**: Provide a `Dockerfile` for easy, containerized deployment.
 - [ ] **Expanded Documentation**: Comprehensive setup guides, API references, and examples.
 
 ## Getting Started
 
-1.  Clone the repository:
-    ```sh
-    git clone https://github.com/byayex/CryptoHook.git
-    ```
-2.  Open the solution in your preferred .NET IDE (e.g., Visual Studio, JetBrains Rider). **|** I recommend using VS Code and opening the Workspace in the root directory
-3.  Review the `CryptoHook.Api` and unit test projects to understand the basic structure.
+1. Clone the repository:
+
+   ```sh
+   git clone https://github.com/byayex/CryptoHook.git
+   ```
+
+2. Open the solution in your preferred .NET IDE (e.g., Visual Studio, JetBrains Rider). **|** I recommend using VS Code and opening the Workspace in the root directory
+3. Review the `CryptoHook.Api` and unit test projects to understand the basic structure.
 
 ## Contributing
 
 Contributions are the primary way this project will move forward! If you have a bug fix or a new feature, please feel free to:
 
-1.  **Fork the repository.**
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  **Open a Pull Request.**
+1. **Fork the repository.**
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4. Push to the branch (`git push origin feature/AmazingFeature`).
+5. **Open a Pull Request.**
 
 I will review all PRs and provide feedback as my time allows. Thank you for helping out!
 

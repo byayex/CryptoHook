@@ -1,4 +1,5 @@
 using System.Numerics;
+using CryptoHook.Api.Models.Attributes;
 using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ namespace CryptoHook.Api.Controllers;
 [ApiController]
 [Route("api/v{version:apiVersion}/payments")]
 [ApiVersion("1.0")]
+[RequireApiKey]
 public class PaymentController(ILogger<PaymentController> logger, DatabaseContext databaseContext, ICryptoServiceFactory cryptoServiceFactory) : ControllerBase
 {
     private readonly DatabaseContext _databaseContext = databaseContext;

@@ -1,5 +1,6 @@
 using CryptoHook.Api.Data;
 using CryptoHook.Api.Managers;
+using CryptoHook.Api.Middleware;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Converters;
 using CryptoHook.Api.Services;
@@ -34,6 +35,10 @@ builder.Services.AddOptions<WebhookConfigList>()
     .ValidateOnStart()
     .ValidateDataAnnotations();
 
+builder.Services.AddOptions<ApiKeyConfig>()
+    .Bind(builder.Configuration.GetSection("ApiKeys"))
+    .ValidateOnStart();
+
 builder.Services.AddSingleton<ConfigManager>();
 
 builder.Services.AddSingleton<IWebhookService, WebhookService>();
@@ -67,7 +72,9 @@ using (var scope = app.Services.CreateScope())
     context.Database.Migrate();
 }
 
+app.UseMiddleware<ApiKeyMiddleware>();
+
 app.UseHttpsRedirection();
-app.MapControllers(); ;
+app.MapControllers();
 
 app.Run();
