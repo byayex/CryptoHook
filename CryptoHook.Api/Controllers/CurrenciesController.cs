@@ -26,7 +26,14 @@ public class CurrenciesController(ConfigManager configManager, ILogger<Currencie
         catch (Exception ex)
         {
             _logger.LogError(ex, "An error occurred while retrieving usable currencies");
-            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while retrieving usable currencies.");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An error occurred while retrieving usable currencies.",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1"
+            };
+            return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
         }
     }
 }

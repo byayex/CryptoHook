@@ -31,7 +31,14 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
             if (paymentRequest == null)
             {
                 _logger.LogWarning("Payment request with ID {Id} not found", id);
-                return NotFound($"Payment request with ID '{id}' not found");
+                var problemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status404NotFound,
+                    Title = "Payment Request Not Found",
+                    Detail = $"Payment request with ID '{id}' not found",
+                    Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.4"
+                };
+                return NotFound(problemDetails);
             }
 
             _logger.LogInformation("Retrieved payment request: {@PaymentRequest}", paymentRequest);
@@ -40,7 +47,14 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch payment request with ID {Id}", id);
-            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while fetching the payment request");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An error occurred while fetching the payment request",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1"
+            };
+            return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
         }
     }
 
@@ -53,13 +67,27 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         if (string.IsNullOrWhiteSpace(symbol))
         {
             _logger.LogWarning("Crypto symbol is required but was not provided");
-            return BadRequest("Crypto symbol is required");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "Crypto symbol is required",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1"
+            };
+            return BadRequest(problemDetails);
         }
 
         if (amount <= 0)
         {
             _logger.LogWarning("Invalid amount provided. Symbol: {Symbol}, Network: {Network}, Amount: {Amount}", symbol, network, amount);
-            return BadRequest("Amount is required to be greater than zero");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = "Amount is required to be greater than zero",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1"
+            };
+            return BadRequest(problemDetails);
         }
 
         var cryptoManager = _cryptoServiceFactory.GetService(symbol, network);
@@ -67,7 +95,14 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         if (cryptoManager == null)
         {
             _logger.LogWarning("Unsupported cryptocurrency. Symbol: {Symbol}, Network: {Network}", symbol, network);
-            return BadRequest($"Cryptocurrency '{symbol}' on network '{network}' is not supported");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Bad Request",
+                Detail = $"Cryptocurrency '{symbol}' on network '{network}' is not supported",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.5.1"
+            };
+            return BadRequest(problemDetails);
         }
 
         using var transaction = await _databaseContext.Database.BeginTransactionAsync();
@@ -115,7 +150,14 @@ public class PaymentController(ILogger<PaymentController> logger, DatabaseContex
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Failed to create payment request for symbol {Symbol}, network {Network}, and amount {Amount}", symbol, network, amount);
-            return StatusCode(StatusCodes.Status500InternalServerError, "An error occurred while creating the payment request");
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status500InternalServerError,
+                Title = "Internal Server Error",
+                Detail = "An error occurred while creating the payment request",
+                Type = "https://datatracker.ietf.org/doc/html/rfc7231#section-6.6.1"
+            };
+            return StatusCode(StatusCodes.Status500InternalServerError, problemDetails);
         }
     }
 }

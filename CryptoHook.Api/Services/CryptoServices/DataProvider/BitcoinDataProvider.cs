@@ -89,7 +89,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         _logger.LogDebug("Fetching transactions for address {Address} in {Symbol}", address, CurrencyConfig.Symbol);
 
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
-        var txsUrl = $"{apiBaseUrl}/address/{address}/txs";
+        var txsUrl = new Uri($"{apiBaseUrl}/address/{address}/txs");
 
         using var httpClient = _httpClientFactory.CreateClient();
 
@@ -116,7 +116,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         var transactions = new List<Transaction>();
         foreach (var txId in txIds)
         {
-            var txHex = await httpClient.GetStringAsync($"{apiBaseUrl}/tx/{txId}/hex");
+            var txHex = await httpClient.GetStringAsync(new Uri($"{apiBaseUrl}/tx/{txId}/hex"));
             transactions.Add(Transaction.Parse(txHex, network));
         }
         return transactions;
@@ -127,7 +127,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
         _logger.LogDebug("Fetching confirmations for transaction {TxId} in {Symbol}", txId, CurrencyConfig.Symbol);
         var apiBaseUrl = network == Network.Main ? "https://blockstream.info/api" : "https://blockstream.info/testnet/api";
 
-        var txStatusUrl = $"{apiBaseUrl}/tx/{txId}/status";
+        var txStatusUrl = new Uri($"{apiBaseUrl}/tx/{txId}/status");
         using var httpClient = _httpClientFactory.CreateClient();
         var response = await httpClient.GetAsync(txStatusUrl);
         if (!response.IsSuccessStatusCode)
@@ -146,7 +146,7 @@ public class BitcoinDataProvider(ILogger<BitcoinDataProvider> logger, IHttpClien
 
         var txBlockHeight = statusDoc.RootElement.GetProperty("block_height").GetUInt32();
 
-        var tipHeightUrl = $"{apiBaseUrl}/blocks/tip/height";
+        var tipHeightUrl = new Uri($"{apiBaseUrl}/blocks/tip/height");
         var currentHeightStr = await httpClient.GetStringAsync(tipHeightUrl);
         var currentHeight = uint.Parse(currentHeightStr, CultureInfo.InvariantCulture);
 
