@@ -6,11 +6,12 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-COPY ["CryptoHook.Api.csproj", "."]
-RUN dotnet restore "CryptoHook.Api.csproj"
+COPY ["CryptoHook.Api/CryptoHook.Api.csproj", "CryptoHook.Api/"]
+COPY [".editorconfig", "."]
+RUN dotnet restore "CryptoHook.Api/CryptoHook.Api.csproj"
 
 COPY . .
-WORKDIR "/src"
+WORKDIR "/src/CryptoHook.Api"
 RUN dotnet build "CryptoHook.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
