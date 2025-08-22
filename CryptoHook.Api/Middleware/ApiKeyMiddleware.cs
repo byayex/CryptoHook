@@ -43,13 +43,6 @@ public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> lo
 
         var apiKey = extractedApiKey.ToString();
 
-        if (!_apiKeyConfig.Contains(apiKey))
-        {
-            _logger.LogWarning("Invalid API key used for request to {RequestPath}", context.Request.Path.Value);
-            await WriteUnauthorizedResponse(context);
-            return;
-        }
-
         bool isValid = false;
         foreach (var configuredApiKey in _apiKeyConfig)
         {
