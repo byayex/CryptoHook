@@ -1,5 +1,4 @@
 using CryptoHook.Api.Models.Configs;
-using CryptoHook.Api.Models.Consts;
 
 namespace CryptoHook.Api.Services.CryptoServices.Factory;
 
