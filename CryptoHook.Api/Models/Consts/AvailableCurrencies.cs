@@ -6,9 +6,9 @@ public static class AvailableCurrencies
 {
     private static readonly IReadOnlyList<AvailableCurrency> _defaultCurrencies = [
       new() { Name = "Bitcoin", Symbol = "BTC", Network = "Main" },
-    new() { Name = "Ethereum", Symbol = "ETH", Network = "MAIN" },
-    new() { Name = "Ethereum", Symbol = "ETH", Network = "SEPOLIA" },
-    new() { Name = "Ethereum", Symbol = "ETH", Network = "GOERLI" },
+    new() { Name = "Ethereum", Symbol = "ETH", Network = "Main" },
+    new() { Name = "Ethereum", Symbol = "ETH", Network = "Sepolia" },
+    new() { Name = "Ethereum", Symbol = "ETH", Network = "Goerli" },
   ];
 
     /// <summary>
