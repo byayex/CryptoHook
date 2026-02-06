@@ -18,7 +18,7 @@ public class EthereumDataProvider(ILogger<EthereumDataProvider> logger, IHttpCli
         if (string.IsNullOrWhiteSpace(CurrencyConfig.Network))
         {
             _logger.LogError("Invalid network specified for Symbol {Symbol}", CurrencyConfig.Symbol);
-            throw new ArgumentException("Invalid network configuration", nameof(address));
+            throw new ArgumentException("Invalid network configuration");
         }
 
         List<EthereumTransaction> ethereumTransactions;
