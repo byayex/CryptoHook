@@ -7,6 +7,7 @@ public static class AvailableCurrencies
   private static readonly IReadOnlyList<AvailableCurrency> _defaultCurrencies =
   [
       new() { Name = "Bitcoin", Symbol = "BTC", Network = "Main" },
+      new() { Name = "Ethereum", Symbol = "ETH", Network = "Main" },
   ];
 
   /// <summary>

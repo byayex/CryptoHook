@@ -46,6 +46,20 @@ public class CryptoServiceFactoryTests
                 [
                     new() { Amount = 0, ConfirmationsNeeded = 1 }
                 ]
+            },
+            new CurrencyConfig
+            {
+                Name = "Ethereum",
+                Symbol = "ETH",
+                IsEnabled = true,
+                InitialPaymentTimeout = 30.0,
+                ExtPubKey = "test test test test test test test test test test test junk",
+                Network = "Main",
+                Confirmations =
+                [
+                    new() { Amount = 0, ConfirmationsNeeded = 12 },
+                    new() { Amount = 1000000000000000000, ConfirmationsNeeded = 35 }
+                ]
             }
         };
 
@@ -145,5 +159,35 @@ public class CryptoServiceFactoryTests
 
         // Assert
         Assert.All(services, service => Assert.Same(services[0], service));
+    }
+
+    [Fact]
+    public void GetService_RequestETHService_ReturnsEthereumService()
+    {
+        // Arrange
+        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+
+        // Act
+        var service = factory.GetService("ETH", "Main");
+
+        // Assert
+        Assert.NotNull(service);
+        Assert.IsType<EthereumService>(service);
+        Assert.Equal("ETH", service.Symbol);
+    }
+
+    [Fact]
+    public void GetService_RequestETHServiceTwice_ReturnsSameService()
+    {
+        // Arrange
+        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+
+        // Act
+        var firstService = factory.GetService("ETH", "Main");
+        var secondService = factory.GetService("ETH", "Main");
+
+        // Assert
+        Assert.Same(firstService, secondService);
+        Assert.IsType<EthereumService>(firstService);
     }
 }

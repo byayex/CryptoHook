@@ -62,11 +62,16 @@ public class CryptoServiceFactory(
             var config = _configManager.GetCurrencyConfig(c.Symbol, c.Network);
             var dataProvider = GetDataProvider(c);
 
-            var createdService = c.Symbol switch
+            ICryptoService createdService = c.Symbol switch
             {
                 "BTC" => new BitcoinService(
                     config,
                     _loggerFactory.CreateLogger<BitcoinService>(),
+                    dataProvider),
+
+                "ETH" => new EthereumService(
+                    config,
+                    _loggerFactory.CreateLogger<EthereumService>(),
                     dataProvider),
 
                 _ => throw new NotSupportedException($"No service implemented for currency: {c.Symbol}")
@@ -100,6 +105,11 @@ public class CryptoServiceFactory(
             {
                 "BTC" => new BitcoinDataProvider(
                     _loggerFactory.CreateLogger<BitcoinDataProvider>(),
+                    _httpClientFactory,
+                    _configManager.GetCurrencyConfig(currency.Symbol, currency.Network)),
+
+                "ETH" => new EthereumDataProvider(
+                    _loggerFactory.CreateLogger<EthereumDataProvider>(),
                     _httpClientFactory,
                     _configManager.GetCurrencyConfig(currency.Symbol, currency.Network)),
 
