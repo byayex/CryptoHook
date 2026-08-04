@@ -5,9 +5,10 @@ using System.Text.Json.Serialization;
 
 namespace CryptoHook.Api.Models.Converters;
 
-/// <summary>
-/// JSON converter for BigInteger to serialize as string instead of object.
-/// </summary>
+/// <remarks>
+/// Amounts in a currency's smallest unit exceed what a JSON number can carry exactly, so they go
+/// over the wire as strings.
+/// </remarks>
 public class BigIntegerStringConverter : JsonConverter<BigInteger>
 {
     public override BigInteger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

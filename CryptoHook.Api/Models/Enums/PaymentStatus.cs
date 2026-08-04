@@ -1,42 +1,33 @@
 namespace CryptoHook.Api.Models.Enums;
 
-/// <summary>
-/// Represents the status of a payment request in its lifecycle.
-/// </summary>
+/// <remarks>
+/// The numeric values are persisted, so new members must only ever be appended.
+/// </remarks>
 public enum PaymentStatus
 {
-    /// <summary>
-    /// The payment request has been created and is awaiting payment.
-    /// </summary>
-    Pending,
+    Pending = 0,
+
+    Paid = 1,
+
+    Underpaid = 2,
+
+    Overpaid = 3,
 
     /// <summary>
-    /// A payment has been detected but is awaiting blockchain confirmation.
+    /// No longer produced. Multiple inbound transactions are now aggregated into a single balance
+    /// instead of being rejected. Retained so that rows written by older versions keep
+    /// deserialising; the worker re-evaluates them and moves them to a current status.
     /// </summary>
-    Paid,
+    MultipleTransactions = 4,
+
+    Confirmed = 5,
 
     /// <summary>
-    /// The payment was received, but the amount was less than expected.
+    /// The request was abandoned: it expired without ever receiving the expected amount.
+    /// <see cref="Payments.PaymentRequest.AmountPaid"/> may still be non-zero, in which case
+    /// partial funds were received and need to be refunded out of band.
     /// </summary>
-    Underpaid,
+    Expired = 6,
 
-    /// <summary>
-    /// The payment was received, but the amount was higher than expected.
-    /// </summary>
-    Overpaid,
-
-    /// <summary>
-    /// Multiple transactions have been detected for the same payment request.
-    /// </summary>
-    MultipleTransactions,
-
-    /// <summary>
-    /// The payment has been successfully confirmed on the blockchain.
-    /// </summary>
-    Confirmed,
-
-    /// <summary>
-    /// The payment request was not initiated before its expiration time.
-    /// </summary>
-    Expired
+    OverpaidConfirmed = 7,
 }

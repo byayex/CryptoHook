@@ -4,6 +4,7 @@ using CryptoHook.Api.Models.Consts;
 
 namespace CryptoHook.Api.UnitTests.Models.Configs;
 
+[Collection(AvailableCurrenciesCollection.Name)]
 public sealed class CurrencyConfigListTests : IDisposable
 {
     private readonly Func<IReadOnlyList<AvailableCurrency>> _originalGetCurrencies;
@@ -40,38 +41,31 @@ public sealed class CurrencyConfigListTests : IDisposable
     [Fact]
     public void Validate_EmptyList_ReturnsNoErrors()
     {
-        // Arrange
         var configList = new CurrencyConfigList();
         var context = new ValidationContext(configList);
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.Empty(results);
     }
 
     [Fact]
     public void Validate_SingleValidConfig_ReturnsNoErrors()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig()
         };
         var context = new ValidationContext(configList);
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.Empty(results);
     }
 
     [Fact]
     public void Validate_UniqueSymbolNetworkCombinations_ReturnsNoErrors()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig("Bitcoin", "BTC", "Main"),
@@ -88,17 +82,14 @@ public sealed class CurrencyConfigListTests : IDisposable
             new() { Symbol = "LTC", Name = "Litecoin", Network = "Main" }
         ];
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.Empty(results);
     }
 
     [Fact]
     public void ValidateUniqueSymbolNetworkCombinations_DuplicateSymbolAndNetwork_ReturnsError()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig("Bitcoin", "BTC", "Main"),
@@ -106,17 +97,14 @@ public sealed class CurrencyConfigListTests : IDisposable
         };
         var context = new ValidationContext(configList);
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.NotEmpty(results);
     }
 
     [Fact]
     public void ValidateUniqueSymbolNetworkCombinations_SameSymbolDifferentNetwork_ReturnsNoError()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig("Bitcoin", "BTC", "Main"),
@@ -129,17 +117,14 @@ public sealed class CurrencyConfigListTests : IDisposable
             new() { Symbol = "BTC", Name = "Bitcoin Testnet", Network = "TestNet" },
         ];
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.Empty(results);
     }
 
     [Fact]
     public void ValidateUniqueSymbolNetworkCombinations_DifferentSymbolSameNetwork_ReturnsNoError()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig("Bitcoin", "BTC", "Main"),
@@ -154,17 +139,14 @@ public sealed class CurrencyConfigListTests : IDisposable
             new() { Symbol = "LTC", Name = "Litecoin", Network = "Main" },
         ];
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.Empty(results);
     }
 
     [Fact]
     public void ValidateUniqueSymbolNetworkCombinations_CaseSensitiveComparison_TreatsNotUnique()
     {
-        // Arrange
         var configList = new CurrencyConfigList
         {
             CreateValidConfig("Bitcoin", "BTC", "Main"),
@@ -173,17 +155,14 @@ public sealed class CurrencyConfigListTests : IDisposable
         };
         var context = new ValidationContext(configList);
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.NotEmpty(results);
     }
 
     [Fact]
     public void ValidateUniqueSymbolNetworkCombinations_OneConfigIsInvalid_ReturnsError()
     {
-        // Arrange
         var invalidConfig = new CurrencyConfig
         {
             Name = "",
@@ -204,10 +183,8 @@ public sealed class CurrencyConfigListTests : IDisposable
         };
         var context = new ValidationContext(configList);
 
-        // Act
         var results = configList.Validate(context).ToList();
 
-        // Assert
         Assert.True(results.Count >= 2);
     }
 }

@@ -8,6 +8,7 @@ using Moq;
 
 namespace CryptoHook.Api.UnitTests.Managers;
 
+[Collection(AvailableCurrenciesCollection.Name)]
 public sealed class ConfigManagerTests : IDisposable
 {
     private readonly Mock<ILogger<ConfigManager>> _mockLogger;
@@ -96,11 +97,9 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void Constructor_ValidCurrencyConfigList_InitializesUsableCurrenciesCorrectly()
     {
-        // Arrange & Act
         var configManager = CreateConfigManager();
         var usableCurrencies = configManager.GetUsableCurrencies();
 
-        // Assert
         Assert.Equal(2, usableCurrencies.Count);
         Assert.Contains(usableCurrencies, c => c.Symbol == "BTC" && c.Network == "Main");
         Assert.Contains(usableCurrencies, c => c.Symbol == "ETH" && c.Network == "Main");
@@ -110,7 +109,6 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void Constructor_SortsConfirmationsByAmount()
     {
-        // Arrange
         var currencyConfigList = new CurrencyConfigList
         {
             new CurrencyConfig
@@ -130,10 +128,8 @@ public sealed class ConfigManagerTests : IDisposable
             }
         };
 
-        // Act
         var configManager = CreateConfigManager(currencyConfigList);
 
-        // Assert
         var btcConfig = currencyConfigList.First(c => c.Symbol == "BTC");
         Assert.Equal(new BigInteger(0), btcConfig.Confirmations[0].Amount);
         Assert.Equal(new BigInteger(1000), btcConfig.Confirmations[1].Amount);
@@ -143,13 +139,10 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void GetCurrencyConfig_ValidSymbolAndNetwork_ReturnsCorrectConfig()
     {
-        // Arrange
         var configManager = CreateConfigManager();
 
-        // Act
         var result = configManager.GetCurrencyConfig("BTC", "Main");
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Bitcoin", result.Name);
         Assert.Equal("BTC", result.Symbol);
@@ -160,13 +153,10 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void GetCurrencyConfig_CaseInsensitiveSymbol_ReturnsCorrectConfig()
     {
-        // Arrange
         var configManager = CreateConfigManager();
 
-        // Act
         var result = configManager.GetCurrencyConfig("btc", "Main");
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Bitcoin", result.Name);
         Assert.Equal("BTC", result.Symbol);
@@ -177,13 +167,10 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void GetCurrencyConfig_CaseInsensitiveNetwork_ReturnsCorrectConfig()
     {
-        // Arrange
         var configManager = CreateConfigManager();
 
-        // Act
         var result = configManager.GetCurrencyConfig("BTC", "main");
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Bitcoin", result.Name);
         Assert.Equal("BTC", result.Symbol);
@@ -194,10 +181,8 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void GetCurrencyConfig_InvalidSymbol_ThrowsInvalidOperationException()
     {
-        // Arrange
         var configManager = CreateConfigManager();
 
-        // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
             configManager.GetCurrencyConfig("INVALID", "Main"));
     }
@@ -205,10 +190,8 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void GetCurrencyConfig_InvalidNetwork_ThrowsInvalidOperationException()
     {
-        // Arrange
         var configManager = CreateConfigManager();
 
-        // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() =>
             configManager.GetCurrencyConfig("BTC", "InvalidNetwork"));
     }
@@ -234,13 +217,10 @@ public sealed class ConfigManagerTests : IDisposable
                 ]
             }
         };
-        // Arrange
         var configManager = CreateConfigManager(currencyConfigList);
 
-        // Act
         var result = configManager.GetCurrencyConfig("BTC", "Main");
 
-        // Assert
         Assert.NotNull(result);
         Assert.Equal("Bitcoin", result.Name);
         Assert.Equal("BTC", result.Symbol);
@@ -251,14 +231,11 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void UsableCurrencies_OnlyIncludesEnabledCurrencies()
     {
-        // Arrange
         var currencyConfigList = CreateTestCurrencyConfigList();
         _mockOptions.Setup(o => o.Value).Returns(currencyConfigList);
 
-        // Act
         var configManager = CreateConfigManager();
 
-        // Assert
         Assert.All(configManager.GetUsableCurrencies(), currency =>
         {
             var config = currencyConfigList.FirstOrDefault(c =>
@@ -271,7 +248,6 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void UsableCurrencies_OnlyIncludesCurrenciesFromAvailableCurrenciesService()
     {
-        // Arrange
         var currencyConfigList = CreateTestCurrencyConfigList();
         // Only include BTC Main in available currencies (exclude ETH and BTC Test)
         var limitedAvailableCurrencies = new List<AvailableCurrency>
@@ -279,11 +255,9 @@ public sealed class ConfigManagerTests : IDisposable
             new() { Symbol = "BTC", Name = "Bitcoin", Network = "Main" }
         }.AsReadOnly();
 
-        // Act
         var configManager = CreateConfigManager(currencyConfigList, limitedAvailableCurrencies);
         var usableCurrencies = configManager.GetUsableCurrencies();
 
-        // Assert
         // Only BTC Main should be usable since it's the only one in both lists and enabled
         Assert.Single(usableCurrencies);
         Assert.Contains(usableCurrencies, c => c.Symbol == "BTC" && c.Network == "Main");
@@ -293,7 +267,6 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void UsableCurrencies_ExcludesDisabledCurrencies()
     {
-        // Arrange
         var currencyConfigList = CreateTestCurrencyConfigList();
         // Include BTC Test in available currencies
         var availableCurrencies = new List<AvailableCurrency>
@@ -303,11 +276,9 @@ public sealed class ConfigManagerTests : IDisposable
             new() { Symbol = "BTC", Name = "Bitcoin Testnet", Network = "Test" }
         }.AsReadOnly();
 
-        // Act
         var configManager = CreateConfigManager(currencyConfigList, availableCurrencies);
         var usableCurrencies = configManager.GetUsableCurrencies();
 
-        // Assert
         // Should only include enabled currencies (BTC Main and ETH Main), not BTC Test which does not exist
         Assert.Equal(2, usableCurrencies.Count);
         Assert.Contains(usableCurrencies, c => c.Symbol == "BTC" && c.Network == "Main");
@@ -318,21 +289,17 @@ public sealed class ConfigManagerTests : IDisposable
     [Fact]
     public void Constructor_EmptyCurrencyConfigList_InitializesEmptyUsableCurrencies()
     {
-        // Arrange
         var emptyCurrencyConfigList = new CurrencyConfigList();
 
-        // Act
         var configManager = CreateConfigManager(emptyCurrencyConfigList);
         var usableCurrencies = configManager.GetUsableCurrencies();
 
-        // Assert
         Assert.Empty(usableCurrencies);
     }
 
     [Fact]
     public void Constructor_NullConfirmations_HandledGracefully()
     {
-        // Arrange
         var currencyConfigList = new CurrencyConfigList
         {
             new CurrencyConfig
@@ -347,7 +314,6 @@ public sealed class ConfigManagerTests : IDisposable
             }
         };
 
-        // Act & Assert
         var configManager = CreateConfigManager(currencyConfigList);
         Assert.NotNull(configManager);
         Assert.Empty(currencyConfigList.First().Confirmations);

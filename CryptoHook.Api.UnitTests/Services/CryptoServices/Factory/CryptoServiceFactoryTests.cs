@@ -9,8 +9,9 @@ using Moq;
 
 namespace CryptoHook.Api.UnitTests.Services.CryptoServices.Factory;
 
-public class CryptoServiceFactoryTests
+public sealed class CryptoServiceFactoryTests : IDisposable
 {
+    private readonly List<CryptoServiceFactory> _factories = [];
     private readonly ConfigManager _configManager;
     private readonly Mock<IHttpClientFactory> _mockHttpClient;
     private readonly ILoggerFactory _loggerFactory;
@@ -59,58 +60,62 @@ public class CryptoServiceFactoryTests
         _loggerFactory = NullLoggerFactory.Instance;
     }
 
+    public void Dispose() => _factories.ForEach(factory => factory.Dispose());
+
+    private CryptoServiceFactory CreateFactory()
+    {
+        var factory = new CryptoServiceFactory(
+            _configManager, _mockHttpClient.Object, _loggerFactory, TestDefaults.PaymentCheckOptions());
+
+        _factories.Add(factory);
+        return factory;
+    }
+
     [Theory]
     [InlineData("UNKNOWN", "Main")]
     [InlineData("BTC", "UNKNOWN")]
-    public void GetService_RequestUnknownData_ThrowsError(string symbol, string network)
+    public void GetService_RequestUnknownData_ReturnsNull(string symbol, string network)
     {
-        // Arrange
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+        var factory = CreateFactory();
 
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => factory.GetService(symbol, network));
+        // Unknown currencies are an expected caller mistake, not a server fault: returning
+        // null lets the controller answer 400 and the worker skip a single row.
+        Assert.Null(factory.GetService(symbol, network));
     }
 
     [Theory]
     [InlineData("UNKNOWN", "Bitcoin", "Main")]
     [InlineData("BTC", "Bitcoin", "UNKNOWN")]
     [InlineData("BTC", "UNKNOWN", "Main")]
-    public void GetService_RequestUnknownAvailableCurrency_ThrowsError(string symbol, string name, string network)
+    public void GetService_RequestUnknownAvailableCurrency_ReturnsNull(string symbol, string name, string network)
     {
-        // Arrange
         var currency = new AvailableCurrency
         {
             Symbol = symbol,
             Name = name,
             Network = network
         };
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+        var factory = CreateFactory();
 
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => factory.GetService(currency));
+        Assert.Null(factory.GetService(currency));
     }
 
     [Fact]
-    public void GetService_RequestDisabledCurrency_ThrowsError()
+    public void GetService_RequestDisabledCurrency_ReturnsNull()
     {
-        // Arrange
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+        var factory = CreateFactory();
 
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => factory.GetService("BTC", "TestNet"));
+        Assert.Null(factory.GetService("BTC", "TestNet"));
     }
 
     [Fact]
     public void GetService_RequestBTCServiceCaseInsensitive_ReturnsCachedService()
     {
-        // Arrange
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+        var factory = CreateFactory();
 
-        // Act
         var firstService = factory.GetService("BTC", "Main");
         var secondService = factory.GetService("btc", "main");
 
-        // Assert
         Assert.Same(firstService, secondService);
         Assert.IsType<BitcoinService>(firstService);
     }
@@ -118,14 +123,11 @@ public class CryptoServiceFactoryTests
     [Fact]
     public void GetService_RequestBTCServiceTwice_ReturnsSameService()
     {
-        // Arrange
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
+        var factory = CreateFactory();
 
-        // Act
         var firstService = factory.GetService("BTC", "Main");
         var secondService = factory.GetService("BTC", "Main");
 
-        // Assert
         Assert.Same(firstService, secondService);
         Assert.IsType<BitcoinService>(firstService);
     }
@@ -133,17 +135,14 @@ public class CryptoServiceFactoryTests
     [Fact]
     public void GetService_ConcurrentRequests_ReturnsSameInstance()
     {
-        // Arrange
-        var factory = new CryptoServiceFactory(_configManager, _mockHttpClient.Object, _loggerFactory);
-        var services = new ICryptoService[10];
+        var factory = CreateFactory();
+        var services = new ICryptoService?[10];
 
-        // Act
         Parallel.For(0, 10, i =>
         {
             services[i] = factory.GetService("BTC", "Main");
         });
 
-        // Assert
         Assert.All(services, service => Assert.Same(services[0], service));
     }
 }

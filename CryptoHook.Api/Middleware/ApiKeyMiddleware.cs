@@ -1,62 +1,62 @@
-using CryptoHook.Api.Models.Attributes;
-using CryptoHook.Api.Models.Configs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
-using System.Reflection;
-using System.Security.Cryptography;
 
 namespace CryptoHook.Api.Middleware;
 
-public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, IOptions<ApiKeyConfig> apiKeyConfig)
+public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, ApiKeyRegistry apiKeyRegistry)
 {
+    public const string ApiKeyHeaderName = "X-API-Key";
+
     private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
     private readonly ILogger<ApiKeyMiddleware> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly ApiKeyConfig _apiKeyConfig = apiKeyConfig?.Value ?? throw new ArgumentNullException(nameof(apiKeyConfig));
     private readonly ConcurrentDictionary<Endpoint, bool> _apiKeyRequirementCache = new();
+
+    /// <remarks>
+    /// The keys are held (and re-hashed on change) by the registry, which the rate limiter shares:
+    /// it partitions on the presented key and runs before this middleware, so it needs the same
+    /// answer about whether that key is real.
+    /// </remarks>
+    private readonly ApiKeyRegistry _apiKeyRegistry = apiKeyRegistry ?? throw new ArgumentNullException(nameof(apiKeyRegistry));
 
     public async Task InvokeAsync(HttpContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // If no API keys are configured, skip authentication
-        if (_apiKeyConfig.Count == 0)
-        {
-            await _next(context);
-            return;
-        }
-
-        // Check if the endpoint requires API key authentication
         if (!RequiresApiKey(context))
         {
             await _next(context);
             return;
         }
 
-        // Check for API key in headers
-        if (!context.Request.Headers.TryGetValue("X-API-Key", out var extractedApiKey))
+        // Fail closed: a protected endpoint must never become reachable just because the
+        // configuration is missing, empty or failed to bind.
+        if (!_apiKeyRegistry.HasKeys)
         {
-            _logger.LogWarning("API key missing from request to {RequestPath}", context.Request.Path.Value);
+            _logger.LogCritical(
+                "No API keys are configured, denying request to {RequestPath}. Populate the 'ApiKeys' configuration section.",
+                context.Request.Path.Value);
             await WriteUnauthorizedResponse(context);
             return;
         }
 
-        var apiKey = extractedApiKey.ToString();
-
-        bool isValid = false;
-        foreach (var configuredApiKey in _apiKeyConfig)
+        if (!context.Request.Headers.TryGetValue(ApiKeyHeaderName, out var extractedApiKey) || extractedApiKey.Count != 1)
         {
-            if (CryptographicOperations.FixedTimeEquals(
-                System.Text.Encoding.UTF8.GetBytes(apiKey),
-                System.Text.Encoding.UTF8.GetBytes(configuredApiKey)))
-            {
-                isValid = true;
-                // Don't break here! Continue the loop to ensure the
-                // method takes the same amount of time for any valid key.
-            }
+            _logger.LogWarning("API key missing or supplied more than once for request to {RequestPath}", context.Request.Path.Value);
+            await WriteUnauthorizedResponse(context);
+            return;
         }
 
-        if (!isValid)
+        var presentedKey = extractedApiKey[0];
+
+        if (string.IsNullOrEmpty(presentedKey))
+        {
+            _logger.LogWarning("Empty API key used for request to {RequestPath}", context.Request.Path.Value);
+            await WriteUnauthorizedResponse(context);
+            return;
+        }
+
+        if (!_apiKeyRegistry.IsValid(presentedKey))
         {
             _logger.LogWarning("Invalid API key used for request to {RequestPath}", context.Request.Path.Value);
             await WriteUnauthorizedResponse(context);
@@ -67,9 +67,17 @@ public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> lo
         await _next(context);
     }
 
+    /// <remarks>
+    /// Deny by default: every routed endpoint needs a key unless it opts out with
+    /// <see cref="AllowAnonymousAttribute"/>. Requiring <c>[RequireApiKey]</c> to be present instead
+    /// meant anything that forgot it was silently public, including any endpoint without a
+    /// controller action descriptor.
+    /// </remarks>
     private bool RequiresApiKey(HttpContext context)
     {
         var endpoint = context.GetEndpoint();
+
+        // Nothing was routed, so there is no endpoint to protect and this ends as a 404.
         if (endpoint == null)
         {
             return false;
@@ -80,10 +88,7 @@ public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> lo
             return requiresApiKey;
         }
 
-        var actionDescriptor = endpoint.Metadata.GetMetadata<Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor>();
-
-        requiresApiKey = actionDescriptor?.ControllerTypeInfo.GetCustomAttribute<RequireApiKeyAttribute>() is not null ||
-                       actionDescriptor?.MethodInfo.GetCustomAttribute<RequireApiKeyAttribute>() is not null;
+        requiresApiKey = endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null;
 
         _apiKeyRequirementCache[endpoint] = requiresApiKey;
 
@@ -96,9 +101,15 @@ public class ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> lo
         {
             Status = StatusCodes.Status401Unauthorized,
             Title = "Unauthorized",
-            Detail = "A valid API key is required to access this endpoint."
+            Detail = "A valid API key is required to access this endpoint.",
+            Type = "https://datatracker.ietf.org/doc/html/rfc7235#section-3.1"
         };
-        await context.Response.WriteAsJsonAsync(problemDetails);
+
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(
+            problemDetails,
+            options: null,
+            contentType: "application/problem+json");
     }
 
 }

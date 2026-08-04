@@ -60,16 +60,14 @@ public class BitcoinServiceTests
     [Fact]
     public void GetAddressAtIndex_UseValidIndex_ReturnsAddress()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
-        // Act
         var address = bitcoinService.GetAddressAtIndex(5);
 
-        // Assert
         Assert.NotNull(address);
         Assert.Equal("bc1qw8lfd5yp8wqz8pp8wssnyven9gy8l6dvddneh4", address);
     }
@@ -77,19 +75,19 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_NoTransactionsFound_ReturnsPendingStatus()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
         // Simulate no transactions found
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
@@ -99,9 +97,9 @@ public class BitcoinServiceTests
 
         // Simulate error thrown by provider
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Simulated error"));
 
         var errorResult = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
@@ -112,11 +110,11 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_ExpiredPayment_ReturnsExpiredStatus()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
         testPaymentRequest.ExpiresAt = DateTime.UtcNow.AddMinutes(-10); // Expired 10 minutes ago
@@ -124,9 +122,9 @@ public class BitcoinServiceTests
 
         // Simulate no transactions found
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
@@ -136,9 +134,9 @@ public class BitcoinServiceTests
 
         // Simulate error thrown by provider
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Simulated error"));
 
         var errorResult = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
@@ -149,11 +147,11 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_SingleTransactionWithSufficientAmount_ReturnsConfirmedStatus()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
@@ -165,15 +163,13 @@ public class BitcoinServiceTests
         };
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([transaction]);
 
-        // Act
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
 
-        // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
         Assert.Equal(PaymentStatus.Confirmed, paymentRequest.Status);
@@ -185,11 +181,11 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_SingleTransactionWithInsufficientConfirmations_ReturnsPaidStatus()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
         testPaymentRequest.ConfirmationNeeded = 3;
@@ -202,15 +198,13 @@ public class BitcoinServiceTests
         };
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([transaction]);
 
-        // Act
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
 
-        // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
         Assert.Equal(PaymentStatus.Paid, paymentRequest.Status);
@@ -222,11 +216,11 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_UnderpaidTransaction_ReturnsUnderpaidStatus()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
@@ -238,15 +232,13 @@ public class BitcoinServiceTests
         };
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([transaction]);
 
-        // Act
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
 
-        // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
         Assert.Equal(PaymentStatus.Underpaid, paymentRequest.Status);
@@ -256,13 +248,15 @@ public class BitcoinServiceTests
     }
 
     [Fact]
-    public async Task CheckTransactionStatus_OverpaidTransaction_ReturnsOverpaidStatus()
+    public async Task CheckTransactionStatus_OverpaidTransaction_SettlesOnceConfirmed()
     {
-        // Arrange
+        // An overpayment settles like any other payment: staying in Overpaid with confirmations
+        // never evaluated leaves the merchant no signal that it is safe to fulfil.
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
@@ -274,31 +268,32 @@ public class BitcoinServiceTests
         };
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([transaction]);
 
-        // Act
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
 
-        // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatus.Overpaid, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.OverpaidConfirmed, paymentRequest.Status);
         Assert.Equal(150000, paymentRequest.AmountPaid);
         Assert.Equal(1u, paymentRequest.ConfirmationCount);
         Assert.Equal("test-tx-id-123", paymentRequest.TransactionId);
     }
 
     [Fact]
-    public async Task CheckTransactionStatus_MultipleTransactions_ReturnsMultipleTransactionsStatus()
+    public async Task CheckTransactionStatus_MultipleTransactions_AreAggregatedIntoOneBalance()
     {
-        // Arrange
+        // Payers top up an underpayment and exchanges split withdrawals, so a second transaction
+        // is normal. Rejecting the pair as MultipleTransactions, with the amount recorded but the
+        // transaction ids and confirmations thrown away, left the request stuck for good.
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
@@ -319,41 +314,38 @@ public class BitcoinServiceTests
         };
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(transactions);
 
-        // Act
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
 
-        // Assert
         Assert.NotNull(paymentRequest);
         Assert.Equal(testPaymentRequest.Id, paymentRequest.Id);
-        Assert.Equal(PaymentStatus.MultipleTransactions, paymentRequest.Status);
+        Assert.Equal(PaymentStatus.Confirmed, paymentRequest.Status);
         Assert.Equal(100000, paymentRequest.AmountPaid); // Sum of both transactions
-        Assert.Equal(0u, paymentRequest.ConfirmationCount); // Set to 0 for multiple transactions
-        Assert.Equal("", paymentRequest.TransactionId); // Empty for multiple transactions
+        Assert.Equal(1u, paymentRequest.ConfirmationCount); // The least confirmed part decides
+        Assert.Equal("test-tx-id-1,test-tx-id-2", paymentRequest.TransactionId);
     }
 
     [Fact]
     public async Task CheckTransactionStatus_DataProviderThrowsException_ReturnsOriginalRequest()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
 
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Network error"));
 
-        // Act
         var errorResult = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
         Assert.NotNull(errorResult);
         Assert.Equal(testPaymentRequest.Id, errorResult.Id);
@@ -362,11 +354,11 @@ public class BitcoinServiceTests
     [Fact]
     public void GetAddressAtIndex_DifferentIndexes_ShouldReturnDifferentAddresses()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         // Act & Assert - Should not throw for reasonable index values
         var address1 = bitcoinService.GetAddressAtIndex(0);
@@ -384,20 +376,20 @@ public class BitcoinServiceTests
     [Fact]
     public async Task CheckTransactionStatus_UpdatedAtIsSetToCurrentTime()
     {
-        // Arrange
         var bitcoinService = new BitcoinService(
             ReturnValidCurrencyConfig(),
             _logger.Object,
-            _dataProvider.Object);
+            _dataProvider.Object,
+            TestDefaults.PaymentCheckConfig());
 
         var testPaymentRequest = CreateTestPaymentRequest();
         var originalUpdatedAt = testPaymentRequest.UpdatedAt;
 
         // Simulate no transactions found
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
         var paymentRequest = await bitcoinService.CheckTransactionStatus(testPaymentRequest);
@@ -407,9 +399,9 @@ public class BitcoinServiceTests
 
         // Simulate error thrown by provider
         _dataProvider
-            .Setup(dp => dp.GetTransactionsAsync(
+            .Setup(dp => dp.GetInboundTransactionsAsync(
                 It.IsAny<string>(),
-                It.IsAny<uint>()))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Simulated error"));
 
         var errorResult = await bitcoinService.CheckTransactionStatus(testPaymentRequest);

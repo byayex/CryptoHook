@@ -1,36 +1,37 @@
-using System.Net;
+using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
+using CryptoHook.Api.Data;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
 using CryptoHook.Api.Services;
-using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Moq.Protected;
 
 namespace CryptoHook.Api.UnitTests.Services;
 
-public class WebhookServiceTests
+public sealed class WebhookServiceTests : IDisposable
 {
-    private readonly Mock<IHttpClientFactory> _mockHttpClientFactory;
-    private readonly Mock<IOptions<WebhookConfigList>> _mockWebhookOptions;
-    private readonly Mock<ILogger<WebhookService>> _mockLogger;
-    private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
+    private readonly DbContextOptions<DatabaseContext> _dbContextOptions;
+    private readonly Mock<IDbContextFactory<DatabaseContext>> _mockDbContextFactory = new();
+    private readonly WebhookDispatchSignal _dispatchSignal = new();
+
+    private static readonly JsonSerializerOptions WebJsonOptions = new(JsonSerializerDefaults.Web);
 
     public WebhookServiceTests()
     {
-        _mockHttpClientFactory = new Mock<IHttpClientFactory>();
-        _mockWebhookOptions = new Mock<IOptions<WebhookConfigList>>();
-        _mockLogger = new Mock<ILogger<WebhookService>>();
-        _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        _dbContextOptions = new DbContextOptionsBuilder<DatabaseContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
 
-        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>()))
-                     .Returns(() =>
-                     {
-                         return new HttpClient(_mockHttpMessageHandler.Object);
-                     });
+        _mockDbContextFactory.Setup(f => f.CreateDbContextAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new DatabaseContext(_dbContextOptions));
     }
+
+    public void Dispose() => _dispatchSignal.Dispose();
 
     private static PaymentRequest CreateTestPaymentRequest()
     {
@@ -60,213 +61,156 @@ public class WebhookServiceTests
         ];
     }
 
-    [Fact]
-    public async Task NotifyPaymentChange_WithNoWebhooks_DoesNothing()
+    private WebhookService CreateService(WebhookConfigList? configs = null)
     {
-        // Arrange
-        var emptyConfigs = new WebhookConfigList();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(emptyConfigs);
+        return new WebhookService(
+            _mockDbContextFactory.Object,
+            Options.Create(configs ?? CreateTestWebhookConfigs()),
+            _dispatchSignal,
+            NullLogger<WebhookService>.Instance);
+    }
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
-
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        _mockHttpClientFactory.Verify(f => f.CreateClient(It.IsAny<string>()), Times.Never);
+    private async Task<List<WebhookDelivery>> ReadDeliveries()
+    {
+        using var context = new DatabaseContext(_dbContextOptions);
+        return await context.WebhookDeliveries.ToListAsync();
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_WithNullWebhooks_DoesNothing()
+    public async Task NotifyPaymentChange_WithNoWebhooks_QueuesNothing()
     {
-        // Arrange
-        _mockWebhookOptions.Setup(o => o.Value).Returns((WebhookConfigList)null!);
+        await CreateService([]).NotifyPaymentChange(CreateTestPaymentRequest());
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
-
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        _mockHttpClientFactory.Verify(f => f.CreateClient(It.IsAny<string>()), Times.Never);
+        Assert.Empty(await ReadDeliveries());
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_WithWebhooks_SendsRequestsToAllUrls()
+    public async Task NotifyPaymentChange_WithNullWebhooks_QueuesNothing()
     {
-        // Arrange
-        var webhookConfigs = CreateTestWebhookConfigs();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
+        var options = new Mock<IOptions<WebhookConfigList>>();
+        options.Setup(o => o.Value).Returns((WebhookConfigList)null!);
 
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
+        var service = new WebhookService(
+            _mockDbContextFactory.Object,
+            options.Object,
+            _dispatchSignal,
+            NullLogger<WebhookService>.Instance);
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
+        await service.NotifyPaymentChange(CreateTestPaymentRequest());
 
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        _mockHttpMessageHandler
-            .Protected()
-            .Verify(
-                "SendAsync",
-                Times.Exactly(2),
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>());
+        Assert.Empty(await ReadDeliveries());
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_SendsCorrectJsonPayloadToAllConfigs()
+    public async Task NotifyPaymentChange_SubscriberWithNoUrl_IsSkippedRatherThanThrowing()
     {
-        // Arrange
-        var webhookConfigs = CreateTestWebhookConfigs();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
+        // Startup validation rejects this, but the consequence of relying on that is out of all
+        // proportion: queueing runs inside the payment worker's transaction, so a
+        // NullReferenceException here discards the status change it was queued alongside and every
+        // payment stays where it was.
+        WebhookConfigList configs =
+        [
+            new WebhookConfig { Url = null!, Secret = "secret1" },
+            new WebhookConfig { Url = new Uri("https://example.com/webhook2"), Secret = "secret2" },
+        ];
 
-        var capturedRequestData = new List<(HttpMethod Method, Uri Uri, string ContentType, string Content)>();
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>(async (req, cancellationToken) =>
-            {
-                var content = req.Content != null ? await req.Content.ReadAsStringAsync(cancellationToken) : string.Empty;
-                var contentType = req.Content?.Headers.ContentType?.MediaType ?? string.Empty;
-                capturedRequestData.Add((req.Method, req.RequestUri!, contentType, content));
-            })
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
+        await CreateService(configs).NotifyPaymentChange(CreateTestPaymentRequest());
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
-
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        Assert.Equal(webhookConfigs.Count, capturedRequestData.Count);
-
-        var expectedJsonPayload = JsonSerializer.Serialize(paymentRequest);
-
-        for (int i = 0; i < capturedRequestData.Count; i++)
-        {
-            var requestData = capturedRequestData[i];
-            var expectedEndpoint = webhookConfigs[i];
-
-            Assert.Equal(HttpMethod.Post, requestData.Method);
-            Assert.Equal(expectedEndpoint.Url, requestData.Uri);
-            Assert.Equal("application/json", requestData.ContentType);
-            Assert.Equal(expectedJsonPayload, requestData.Content);
-        }
+        var deliveries = await ReadDeliveries();
+        Assert.Single(deliveries);
+        Assert.Equal("https://example.com/webhook2", deliveries[0].Url);
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_IncludesCorrectSignatureHeader()
+    public async Task NotifyPaymentChange_QueuesOneDeliveryPerSubscriber()
     {
-        // Arrange
-        var webhookConfigs = CreateTestWebhookConfigs();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
+        // Persisted before anything is attempted, so a crash or an unreachable subscriber
+        // cannot lose the notification the way a fire-and-forget POST did.
+        var configs = CreateTestWebhookConfigs();
 
-        HttpRequestMessage? capturedRequest = null;
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
+        await CreateService(configs).NotifyPaymentChange(CreateTestPaymentRequest());
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
-
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        Assert.NotNull(capturedRequest);
-        Assert.True(capturedRequest.Headers.Contains("X-Signature"));
-
-        var signatureHeader = capturedRequest.Headers.GetValues("X-Signature").First();
-        Assert.StartsWith("sha256=", signatureHeader, StringComparison.InvariantCulture);
-        Assert.True(signatureHeader.Length > 7);
+        var deliveries = await ReadDeliveries();
+        Assert.Equal(2, deliveries.Count);
+        Assert.Contains(deliveries, d => d.Url == "https://example.com/webhook1");
+        Assert.Contains(deliveries, d => d.Url == "https://example.com/webhook2");
+        Assert.All(deliveries, d => Assert.Equal(WebhookDeliveryStatus.Pending, d.Status));
+        Assert.All(deliveries, d => Assert.Equal(0, d.AttemptCount));
+        Assert.All(deliveries, d => Assert.NotNull(d.NextAttemptAt));
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_SendsToCorrectUrls()
+    public async Task NotifyPaymentChange_RecordsTheEventTypeForTheStatus()
     {
-        // Arrange
-        var webhookConfigs = CreateTestWebhookConfigs();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
+        var payment = CreateTestPaymentRequest();
+        payment.Status = PaymentStatus.OverpaidConfirmed;
 
-        var capturedRequests = new List<HttpRequestMessage>();
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequests.Add(req))
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
+        await CreateService().NotifyPaymentChange(payment);
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
-
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
-
-        // Assert
-        Assert.Equal(2, capturedRequests.Count);
-        Assert.Contains(capturedRequests, r => r.RequestUri!.ToString() == "https://example.com/webhook1");
-        Assert.Contains(capturedRequests, r => r.RequestUri!.ToString() == "https://example.com/webhook2");
+        var deliveries = await ReadDeliveries();
+        Assert.All(deliveries, d => Assert.Equal("payment.confirmed.overpaid", d.EventType));
     }
 
     [Fact]
-    public async Task NotifyPaymentChange_ContinuesWithOtherWebhooksOnError()
+    public async Task NotifyPaymentChange_SharesOneEventIdAcrossSubscribers()
     {
-        // Arrange
-        var webhookConfigs = CreateTestWebhookConfigs();
-        _mockWebhookOptions.Setup(o => o.Value).Returns(webhookConfigs);
+        // The event id is the idempotency key subscribers deduplicate on, so every copy of the
+        // same event has to carry the same one.
+        await CreateService().NotifyPaymentChange(CreateTestPaymentRequest());
 
-        var callCount = 0;
-        _mockHttpMessageHandler
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Returns(() =>
-            {
-                callCount++;
-                if (callCount == 1)
-                    throw new HttpRequestException("First webhook failed");
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-            });
+        var eventIds = (await ReadDeliveries())
+            .Select(d => JsonSerializer.Deserialize<WebhookEnvelope>(d.Payload)!.EventId)
+            .Distinct()
+            .ToList();
 
-        var service = new WebhookService(_mockHttpClientFactory.Object, _mockWebhookOptions.Object, _mockLogger.Object);
-        var paymentRequest = CreateTestPaymentRequest();
+        Assert.Single(eventIds);
+        Assert.NotEqual(Guid.Empty, eventIds[0]);
+    }
 
-        // Act
-        await service.NotifyPaymentChange(paymentRequest);
+    [Fact]
+    public async Task NotifyPaymentChange_WrapsThePaymentInAVersionedEnvelope()
+    {
+        var payment = CreateTestPaymentRequest();
 
-        // Assert
-        Assert.Equal(2, callCount);
-        _mockLogger.Verify(
-            l => l.Log(
-                LogLevel.Error,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => !string.IsNullOrWhiteSpace(v.ToString())),
-                It.IsAny<HttpRequestException>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        await CreateService().NotifyPaymentChange(payment);
+
+        var envelope = JsonSerializer.Deserialize<WebhookEnvelope>((await ReadDeliveries())[0].Payload);
+        Assert.NotNull(envelope);
+        Assert.Equal("1", envelope.SpecVersion);
+        Assert.Equal("payment.received", envelope.EventType);
+        Assert.Equal(payment.Id, envelope.Data.Id);
+    }
+
+    [Fact]
+    public async Task NotifyPaymentChange_SerializesAmountsAsStrings()
+    {
+        // Amounts exceed what a JSON number can carry losslessly, so they go over the wire as
+        // strings.
+        var payment = CreateTestPaymentRequest();
+        payment.AmountExpected = BigInteger.Parse("123456789012345678901234567890", CultureInfo.InvariantCulture);
+
+        await CreateService().NotifyPaymentChange(payment);
+
+        Assert.Contains("\"123456789012345678901234567890\"", (await ReadDeliveries())[0].Payload, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WebhookDelivery_IsSerializableForTheApi()
+    {
+        // A required property that is also JsonIgnore'd makes System.Text.Json refuse to build a
+        // contract for the type at all, which turned every delivery listing into a 500.
+        await CreateService().NotifyPaymentChange(CreateTestPaymentRequest());
+        var delivery = (await ReadDeliveries())[0];
+
+        var json = JsonSerializer.Serialize(delivery, WebJsonOptions);
+
+        Assert.Contains("\"eventType\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("payload", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task NotifyPaymentChange_NullPayload_Throws()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(() => CreateService().NotifyPaymentChange(null!));
     }
 }

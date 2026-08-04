@@ -1,4 +1,3 @@
-using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Models.Payments;
 
 namespace CryptoHook.Api.Services.CryptoServices.DataProvider;
@@ -6,8 +5,14 @@ namespace CryptoHook.Api.Services.CryptoServices.DataProvider;
 public interface ICryptoDataProvider
 {
     /// <summary>
-    /// Fetches informations about the transactions associated with a specific address on the blockchain.
-    /// Limits the number of transactions per default to 2. (more is not needed because we only accept one transaction per payment request/address)
+    /// Returns every inbound transaction the explorer reports for the address, oldest first.
     /// </summary>
-    Task<List<PaymentTransaction>> GetTransactionsAsync(string address, uint limit = 2);
+    /// <remarks>
+    /// All of them, not a sample. A payer or an exchange can split a payment across several
+    /// transactions, and the caller sums them to decide whether the request is covered, so a
+    /// truncated list produces a wrong balance rather than a slightly stale one. Implementations
+    /// page through the explorer's listings and only stop at a cap far above what a single-use
+    /// receiving address can plausibly accumulate, which they log when they hit it.
+    /// </remarks>
+    Task<List<PaymentTransaction>> GetInboundTransactionsAsync(string address, CancellationToken cancellationToken = default);
 }

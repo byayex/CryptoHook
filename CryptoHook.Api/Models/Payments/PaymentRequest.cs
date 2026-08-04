@@ -6,95 +6,81 @@ using CryptoHook.Api.Models.Enums;
 
 namespace CryptoHook.Api.Models.Payments;
 
-/// <summary>
-/// Models a request for a specific amount of cryptocurrency to be paid.
-/// </summary>
 public class PaymentRequest
 {
-    /// <summary>
-    /// Gets or sets the public identifier for the payment request (used in API responses).
-    /// </summary>
     [Key, Required]
     public Guid Id { get; set; }
 
-    /// <summary>
-    /// Gets or sets the internal sequential ID used for deriving crypto addresses.
-    /// </summary>
     [JsonIgnore]
     public ulong DerivationIndex { get; set; }
 
-    /// <summary>
-    /// Gets or sets the current status of the payment request (e.g., Pending, Paid, Expired).
-    /// </summary>
     [Required]
     public required PaymentStatus Status { get; set; }
 
     /// <summary>
-    /// Gets or sets the amount of currency expected for this payment, in its smallest unit (e.g., satoshis).
+    /// Gets or sets the expected amount in the currency's smallest unit: satoshis, not BTC, and
+    /// wei, not ether.
     /// </summary>
     [Required]
     [JsonConverter(typeof(BigIntegerStringConverter))]
     public required BigInteger AmountExpected { get; set; }
 
     /// <summary>
-    /// Gets or sets the total amount of currency that has been paid towards this request so far.
+    /// Gets or sets the total received so far, in the currency's smallest unit, summed over every
+    /// inbound transaction.
     /// </summary>
     [Required]
     [JsonConverter(typeof(BigIntegerStringConverter))]
     public required BigInteger AmountPaid { get; set; }
 
-    /// <summary>
-    /// Gets or sets the number of confirmations this transaction has received.
-    /// </summary>
     [Required]
     public required uint ConfirmationCount { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of confirmations this transaction needs to be considered completed.
+    /// Gets or sets the confirmations required to settle, frozen at creation time so that a later
+    /// configuration change cannot move the goalposts for a request already in flight.
     /// </summary>
     [Required]
     public required uint ConfirmationNeeded { get; set; }
 
-    /// <summary>
-    /// Gets or sets the unique cryptocurrency address generated for this specific payment request.
-    /// </summary>
     [Required]
     public required string ReceivingAddress { get; set; }
 
-    /// <summary>
-    /// Gets or sets the symbol that represents the currency for this payment request (e.g., BTC, ETH).
-    /// </summary>
     [Required]
     public required string CurrencySymbol { get; set; }
 
-    /// <summary>
-    /// Gets or sets the symbol that represents the network of the currency for this payment request (e.g., Main, Testnet).
-    /// </summary>
     [Required]
     public required string Network { get; set; }
 
-    /// <summary>
-    /// Gets or sets the timestamp for when the payment request was created.
-    /// </summary>
     [Required]
     public required DateTime CreatedAt { get; set; }
 
-    /// <summary>
-    /// Gets or sets the timestamp indicating the last time this payment request was updated.
-    /// </summary>
     [Required]
     public required DateTime UpdatedAt { get; set; }
 
-    /// <summary>
-    /// Gets or sets the timestamp for when this payment request becomes invalid.
-    /// </summary>
     [Required]
     public required DateTime ExpiresAt { get; set; }
 
     /// <summary>
-    /// Gets or sets the transaction ID of the detected transaction.
+    /// Gets or sets the identifiers of the detected inbound transactions, comma separated and
+    /// ordered oldest first. A payment is usually a single transaction, but payers and exchanges
+    /// do split one across several, so more than one identifier is normal.
     /// </summary>
     public string? TransactionId { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the funds arrived after <see cref="ExpiresAt"/> had already passed.
+    /// The merchant may already have cancelled the order, and the amount was quoted against a
+    /// rate that is no longer current. Late payments are accepted rather than dropped, but they
+    /// need to be recognisable as such.
+    /// </summary>
+    public bool WasLate { get; set; }
+
+    /// <summary>
+    /// Gets or sets when the request first reached a settled status. Anchors the window during
+    /// which the worker keeps watching a settled payment for a chain reorganisation.
+    /// </summary>
+    public DateTime? SettledAt { get; set; }
 
     public void SetStatus(PaymentStatus newStatus)
     {
