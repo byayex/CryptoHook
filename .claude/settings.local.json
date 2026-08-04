@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Read(//mnt/c/Users/luca-/Desktop/GitHub/CryptoHook/**)",
+      "Bash(rtk git *)"
+    ]
+  }
+}

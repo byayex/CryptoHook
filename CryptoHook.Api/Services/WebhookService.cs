@@ -1,79 +1,121 @@
-using System.Globalization;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
+using CryptoHook.Api.Data;
 using CryptoHook.Api.Models.Configs;
+using CryptoHook.Api.Models.Enums;
 using CryptoHook.Api.Models.Payments;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace CryptoHook.Api.Services;
 
-public class WebhookService(IHttpClientFactory httpClientFactory, IOptions<WebhookConfigList> webhookConfigs, ILogger<WebhookService> logger) : IWebhookService
+/// <remarks>
+/// Records the notifications owed to subscribers; sending them is
+/// <see cref="WebhookDispatchWorker"/>'s job. Writing a notification down before attempting it is
+/// what makes delivery survive a subscriber outage, a crash and a restart.
+/// </remarks>
+public class WebhookService(
+    IDbContextFactory<DatabaseContext> dbContextFactory,
+    IOptions<WebhookConfigList> webhookConfigs,
+    WebhookDispatchSignal dispatchSignal,
+    ILogger<WebhookService> logger) : IWebhookService
 {
-    private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    private readonly IDbContextFactory<DatabaseContext> _dbContextFactory = dbContextFactory;
     private readonly WebhookConfigList _webhookConfigs = webhookConfigs.Value;
+    private readonly WebhookDispatchSignal _dispatchSignal = dispatchSignal;
     private readonly ILogger<WebhookService> _logger = logger;
 
-    public async Task NotifyPaymentChange(PaymentRequest payload)
+    public async Task NotifyPaymentChange(PaymentRequest payload, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(payload);
 
-        if (_webhookConfigs is null || _webhookConfigs.Count == 0)
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!Enqueue(dbContext, payload))
         {
             return;
         }
 
-        _logger.LogInformation("Notifying webhooks for payment {PaymentId} with status {Status}", payload.Id, payload.Status);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        var jsonPayload = JsonSerializer.Serialize(payload);
-
-        _logger.LogDebug("Webhook payload: {Payload}", jsonPayload);
-
-        foreach (var webhook in _webhookConfigs)
-        {
-            _logger.LogInformation("Sending webhook notification to {Url}", webhook.Url);
-
-            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
-            var requestId = Guid.NewGuid().ToString();
-
-            var signature = GenerateHmacSignature(jsonPayload, timestamp, requestId, webhook.Secret);
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.DefaultRequestHeaders.Add("X-Signature", $"sha256={signature}");
-            httpClient.DefaultRequestHeaders.Add("X-Timestamp", timestamp);
-            httpClient.DefaultRequestHeaders.Add("X-Request-ID", requestId);
-
-            try
-            {
-                using var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-                var response = await httpClient.PostAsync(webhook.Url, content);
-                response.EnsureSuccessStatusCode();
-                _logger.LogInformation("Successfully sent webhook notification to {Url}", webhook.Url);
-            }
-            catch (HttpRequestException e)
-            {
-                _logger.LogError(e, "Error sending webhook notification to {Url}", webhook.Url);
-            }
-        }
+        SignalDispatch();
     }
 
-    /// <summary>
-    /// Generates HMAC-SHA256 signature for webhook payload verification with replay attack protection
-    /// </summary>
-    /// <param name="payload">The JSON payload to sign</param>
-    /// <param name="timestamp">Unix timestamp for replay protection</param>
-    /// <param name="requestId">Unique request identifier</param>
-    /// <param name="secret">The webhook secret key</param>
-    /// <returns>Hex-encoded HMAC signature</returns>
-    private static string GenerateHmacSignature(string payload, string timestamp, string requestId, string secret)
+    public void EnqueuePaymentChange(DatabaseContext dbContext, PaymentRequest payload)
     {
-        var keyBytes = Encoding.UTF8.GetBytes(secret);
+        ArgumentNullException.ThrowIfNull(dbContext);
+        ArgumentNullException.ThrowIfNull(payload);
 
-        var signaturePayload = $"{timestamp}.{requestId}.{payload}";
-        var payloadBytes = Encoding.UTF8.GetBytes(signaturePayload);
+        Enqueue(dbContext, payload);
+    }
 
-        using var hmac = new HMACSHA256(keyBytes);
-        var hashBytes = hmac.ComputeHash(payloadBytes);
-        return Convert.ToHexString(hashBytes).ToUpperInvariant();
+    public void SignalDispatch() => _dispatchSignal.Signal();
+
+    private bool Enqueue(DatabaseContext dbContext, PaymentRequest payload)
+    {
+        if (_webhookConfigs is null || _webhookConfigs.Count == 0)
+        {
+            return false;
+        }
+
+        // Startup validation rejects an entry without a URL, but not defensively enough to be worth
+        // relying on here: this runs inside the payment worker's transaction, and a
+        // NullReferenceException would discard the status change it was queued alongside, so every
+        // payment would stay where it was and the reason would be one line in a log.
+        var usable = _webhookConfigs.Where(webhook => webhook?.Url is not null).ToList();
+
+        if (usable.Count != _webhookConfigs.Count)
+        {
+            _logger.LogError(
+                "{Count} of {Total} configured webhook subscriber(s) have no Url and are being skipped. Payments will not be notified to them.",
+                _webhookConfigs.Count - usable.Count, _webhookConfigs.Count);
+        }
+
+        if (usable.Count == 0)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        var eventId = Guid.NewGuid();
+        var eventType = WebhookEnvelope.EventTypeFor(payload.Status);
+
+        // Serialised once and stored per subscriber, so a retry hours later still describes the
+        // state that actually triggered the event rather than whatever the payment looks like by
+        // the time the subscriber comes back.
+        var body = JsonSerializer.Serialize(new WebhookEnvelope
+        {
+            EventId = eventId,
+            EventType = eventType,
+            OccurredAt = now,
+            Data = payload,
+        });
+
+        // One delivery per distinct subscriber: the same URL configured twice is a configuration
+        // mistake, and honouring it would post the same event to that subscriber twice.
+        var subscribers = usable
+            .DistinctBy(webhook => webhook.Url.ToString(), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var webhook in subscribers)
+        {
+            dbContext.WebhookDeliveries.Add(new WebhookDelivery
+            {
+                Id = Guid.NewGuid(),
+                PaymentRequestId = payload.Id,
+                Url = webhook.Url.ToString(),
+                EventType = eventType,
+                Payload = body,
+                Status = WebhookDeliveryStatus.Pending,
+                AttemptCount = 0,
+                NextAttemptAt = now,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
+
+        _logger.LogInformation("Queued {Count} webhook notification(s) for payment {PaymentId} ({EventType}, event {EventId})",
+            subscribers.Count, payload.Id, eventType, eventId);
+
+        return true;
     }
 }

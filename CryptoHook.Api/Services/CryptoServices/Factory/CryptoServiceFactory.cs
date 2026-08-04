@@ -1,23 +1,40 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using CryptoHook.Api.Managers;
 using CryptoHook.Api.Models.Configs;
 using CryptoHook.Api.Services.CryptoServices.DataProvider;
+using Microsoft.Extensions.Options;
 
 namespace CryptoHook.Api.Services.CryptoServices.Factory;
 
-public class CryptoServiceFactory(
+public sealed class CryptoServiceFactory(
     ConfigManager configManager,
     IHttpClientFactory httpClientFactory,
-    ILoggerFactory loggerFactory) : ICryptoServiceFactory
+    ILoggerFactory loggerFactory,
+    IOptions<PaymentCheckConfig> paymentCheckConfig) : ICryptoServiceFactory, IDisposable
 {
-    private readonly ConcurrentDictionary<AvailableCurrency, ICryptoService> _services = new();
-    private readonly ConcurrentDictionary<AvailableCurrency, ICryptoDataProvider> _dataProviders = new();
+    /// <remarks>
+    /// Keyed by symbol and network rather than by <see cref="AvailableCurrency"/>, whose properties
+    /// are settable and whose hash code is derived from them: mutating an instance already used as
+    /// a key makes its entry unreachable and leaks it.
+    ///
+    /// The values are lazy so that concurrent first-time callers cannot both run the factory.
+    /// ConcurrentDictionary does not serialise its value factory, and a second data provider is not
+    /// a harmless duplicate: each owns a rate limiter, the two do not coordinate, and the explorer
+    /// then sees twice the configured request rate.
+    /// </remarks>
+    private readonly ConcurrentDictionary<string, Lazy<ICryptoService>> _services = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Lazy<ICryptoDataProvider>> _dataProviders = new(StringComparer.Ordinal);
+
     private readonly ConfigManager _configManager = configManager;
     private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+        Justification = "Injected by the container, which owns its lifetime; disposing it here would tear down logging for the whole application.")]
     private readonly ILoggerFactory _loggerFactory = loggerFactory;
+    private readonly PaymentCheckConfig _paymentCheckConfig = paymentCheckConfig.Value;
     private readonly ILogger<CryptoServiceFactory> _logger = loggerFactory.CreateLogger<CryptoServiceFactory>();
 
-    public ICryptoService GetService(AvailableCurrency currency)
+    public ICryptoService? GetService(AvailableCurrency currency)
     {
         ArgumentNullException.ThrowIfNull(currency);
 
@@ -25,9 +42,14 @@ public class CryptoServiceFactory(
         return GetCryptoService(currency);
     }
 
-    public ICryptoService GetService(string symbol, string network)
+    public ICryptoService? GetService(string symbol, string network)
     {
         _logger.LogDebug("Getting service for symbol: {Symbol} on network: {Network}", symbol, network);
+
+        if (symbol is null || network is null)
+        {
+            return null;
+        }
 
         var currency = _configManager.GetUsableCurrencies()
             .FirstOrDefault(c => c.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase) &&
@@ -35,76 +57,104 @@ public class CryptoServiceFactory(
 
         if (currency == null)
         {
-            _logger.LogError("No service available for currency: {Symbol} on network: {Network}", symbol, network);
-            throw new InvalidOperationException($"No service available for currency: {symbol} on network: {network}");
+            _logger.LogWarning("No service available for currency: {Symbol} on network: {Network}", symbol, network);
+            return null;
         }
 
-        _logger.LogDebug("Found currency configuration for {Symbol} on {Network}", symbol, network);
         return GetCryptoService(currency);
     }
 
-    private ICryptoService GetCryptoService(AvailableCurrency currency)
+    /// <summary>
+    /// Returns <see langword="null"/> for currencies that are not enabled, so that callers can
+    /// answer with a 400 rather than a 500 and the payment worker can skip a single bad row instead
+    /// of aborting a whole cycle.
+    /// </summary>
+    private ICryptoService? GetCryptoService(AvailableCurrency currency)
     {
         if (!_configManager.GetUsableCurrencies().Any(c => c.Equals(currency)))
         {
-            _logger.LogError("No service available for currency: {Symbol} on network: {Network}", currency.Symbol, currency.Network);
-            throw new InvalidOperationException($"No service available for currency: {currency}");
+            _logger.LogWarning("No service available for currency: {Symbol} on network: {Network}", currency.Symbol, currency.Network);
+            return null;
         }
 
-        _logger.LogDebug("Checking cache for existing service: {Symbol} on {Network}. Currency hash: {Hash}",
-            currency.Symbol, currency.Network, currency.GetHashCode());
+        var key = CacheKey(currency);
 
-        var service = _services.GetOrAdd(currency, c =>
+        return _services.GetOrAdd(key, _ => new Lazy<ICryptoService>(
+            () => CreateService(currency),
+            LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
+
+    private ICryptoService CreateService(AvailableCurrency currency)
+    {
+        _logger.LogInformation("Creating crypto service for {Symbol} on {Network}", currency.Symbol, currency.Network);
+
+        var config = _configManager.GetCurrencyConfig(currency.Symbol, currency.Network);
+        var dataProvider = GetDataProvider(currency);
+
+        return currency.Symbol.ToUpperInvariant() switch
         {
-            _logger.LogInformation("Creating new crypto service for currency: {Symbol} on {Network}. Service will be cached with hash: {Hash}",
-                c.Symbol, c.Network, c.GetHashCode());
+            "BTC" => new BitcoinService(
+                config,
+                _loggerFactory.CreateLogger<BitcoinService>(),
+                dataProvider,
+                _paymentCheckConfig),
 
-            var config = _configManager.GetCurrencyConfig(c.Symbol, c.Network);
-            var dataProvider = GetDataProvider(c);
+            "ETH" => new EthereumService(
+                config,
+                _loggerFactory.CreateLogger<EthereumService>(),
+                dataProvider,
+                _paymentCheckConfig),
 
-            var createdService = c.Symbol switch
-            {
-                "BTC" => new BitcoinService(
-                    config,
-                    _loggerFactory.CreateLogger<BitcoinService>(),
-                    dataProvider),
-
-                _ => throw new NotSupportedException($"No service implemented for currency: {c.Symbol}")
-            };
-
-            _logger.LogInformation("Successfully created {ServiceType} for {Symbol} on {Network}",
-                createdService.GetType().Name, c.Symbol, c.Network);
-
-            return createdService;
-        });
-
-        if (_services.ContainsKey(currency))
-        {
-            _logger.LogDebug("Reusing existing {ServiceType} for currency: {Symbol} on {Network}",
-                service.GetType().Name, currency.Symbol, currency.Network);
-        }
-
-        _logger.LogDebug("Returning {ServiceType} for currency: {Symbol} on {Network}",
-            service.GetType().Name, currency.Symbol, currency.Network);
-
-        return service;
+            _ => throw new NotSupportedException($"No service implemented for currency: {currency.Symbol}")
+        };
     }
 
     private ICryptoDataProvider GetDataProvider(AvailableCurrency currency)
     {
-        return _dataProviders.GetOrAdd(currency, _ =>
+        return _dataProviders.GetOrAdd(CacheKey(currency), _ => new Lazy<ICryptoDataProvider>(
+            () => CreateDataProvider(currency),
+            LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+    }
+
+    private ICryptoDataProvider CreateDataProvider(AvailableCurrency currency)
+    {
+        _logger.LogInformation("Creating data provider for {Symbol} on {Network}", currency.Symbol, currency.Network);
+
+        var config = _configManager.GetCurrencyConfig(currency.Symbol, currency.Network);
+
+        return currency.Symbol.ToUpperInvariant() switch
         {
-            _logger.LogInformation("Creating data provider for {Symbol} on {Network}", currency.Symbol, currency.Network);
+            "BTC" => new BitcoinDataProvider(
+                _loggerFactory.CreateLogger<BitcoinDataProvider>(),
+                _httpClientFactory,
+                config),
 
-            return currency.Symbol switch
+            "ETH" => new EthereumDataProvider(
+                _loggerFactory.CreateLogger<EthereumDataProvider>(),
+                _httpClientFactory,
+                config),
+
+            _ => throw new NotSupportedException($"No data provider implemented for currency: {currency.Symbol}")
+        };
+    }
+
+    private static string CacheKey(AvailableCurrency currency) =>
+        $"{currency.Symbol.ToUpperInvariant()}|{currency.Network.ToUpperInvariant()}";
+
+    /// <remarks>
+    /// The data providers own rate limiters, which own semaphores.
+    /// </remarks>
+    public void Dispose()
+    {
+        foreach (var provider in _dataProviders.Values)
+        {
+            if (provider.IsValueCreated && provider.Value is IDisposable disposable)
             {
-                "BTC" => new BitcoinDataProvider(
-                    _loggerFactory.CreateLogger<BitcoinDataProvider>(),
-                    _httpClientFactory,
-                    _configManager.GetCurrencyConfig(currency.Symbol, currency.Network)),
+                disposable.Dispose();
+            }
+        }
 
-                _ => throw new NotSupportedException($"No data provider implemented for currency: {currency.Symbol}")
-            };
-        });
+        _dataProviders.Clear();
+        _services.Clear();
     }
 }

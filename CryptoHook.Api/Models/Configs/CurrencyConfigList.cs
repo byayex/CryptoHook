@@ -2,17 +2,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CryptoHook.Api.Models.Configs;
 
-/// <summary>
-/// A collection of currency configurations with validation for list-level constraints.
-/// Individual currency validation is handled by the ValidCurrencyAttribute on CurrencyConfig.
-/// </summary>
 public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
 {
+    private static readonly string[] SymbolNetworkMemberNames = ["Symbol", "Network"];
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         var results = new List<ValidationResult>();
 
-        // Validate each individual currency config (including ValidCurrencyAttribute and IValidatableObject)
         for (int i = 0; i < Count; i++)
         {
             var config = this[i];
@@ -28,23 +25,39 @@ public class CurrencyConfigList : List<CurrencyConfig>, IValidatableObject
             }
         }
 
-        // Validate list-level constraints: no duplicate symbol/network combinations
         ValidateUniqueSymbolNetworkCombinations(results);
 
         return results;
     }
 
-    private static readonly string[] SymbolNetworkMemberNames = ["Symbol", "Network"];
-
     private void ValidateUniqueSymbolNetworkCombinations(List<ValidationResult> results)
     {
-        var duplicateCombinations = this.GroupBy(c => new { c.Symbol, c.Network })
+        // Case insensitively, because every lookup that resolves a currency later on is: two
+        // entries differing only in case would both pass here and then resolve ambiguously.
+        var duplicateCombinations = this
+            .GroupBy(c => (c.Symbol, c.Network), TupleComparer)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key);
 
         foreach (var combo in duplicateCombinations)
         {
-            results.Add(new ValidationResult($"The combination of Symbol '{combo.Symbol}' and Network '{combo.Network}' must be unique.", SymbolNetworkMemberNames));
+            results.Add(new ValidationResult(
+                $"The combination of Symbol '{combo.Symbol}' and Network '{combo.Network}' must be unique.",
+                SymbolNetworkMemberNames));
         }
+    }
+
+    private static readonly IEqualityComparer<(string Symbol, string Network)> TupleComparer =
+        new SymbolNetworkComparer();
+
+    private sealed class SymbolNetworkComparer : IEqualityComparer<(string Symbol, string Network)>
+    {
+        public bool Equals((string Symbol, string Network) left, (string Symbol, string Network) right) =>
+            string.Equals(left.Symbol, right.Symbol, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(left.Network, right.Network, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode((string Symbol, string Network) value) => HashCode.Combine(
+            StringComparer.OrdinalIgnoreCase.GetHashCode(value.Symbol),
+            StringComparer.OrdinalIgnoreCase.GetHashCode(value.Network));
     }
 }

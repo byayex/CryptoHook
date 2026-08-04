@@ -2,6 +2,7 @@ using CryptoHook.Api.Models.Configs;
 
 namespace CryptoHook.Api.UnitTests.Models.Configs;
 
+[Collection(AvailableCurrenciesCollection.Name)]
 public sealed class CurrencyConfigTests : IDisposable
 {
 
@@ -34,59 +35,46 @@ public sealed class CurrencyConfigTests : IDisposable
     [Fact]
     public void GetConfirmationsNeeded_ValidConfig_ReturnsExpectedValue()
     {
-        // Arrange
         var config = CreateValidConfig();
 
-        // Act
         var result = config.GetConfirmationsNeeded(5000);
 
-        // Assert
         Assert.Equal(1u, result);
     }
 
     [Fact]
     public void GetConfirmationsNeeded_NegativNumber_ThrowsException()
     {
-        // Arrange
         var config = CreateValidConfig();
 
-        // Act & Assert
         Assert.Throws<InvalidOperationException>(() => config.GetConfirmationsNeeded(-1));
     }
 
     [Fact]
     public void GetConfirmationsNeeded_MiddleNumber_ReturnsExpectedValue()
     {
-        // Arrange
         var config = CreateValidConfig();
 
-        // Act
         var result = config.GetConfirmationsNeeded(250000);
 
-        // Assert
         Assert.Equal(3u, result);
     }
 
     [Fact]
     public void GetConfirmationsNeeded_HighNumber_ReturnsExpectedValue()
     {
-        // Arrange
         var config = CreateValidConfig();
 
-        // Act
         var result = config.GetConfirmationsNeeded(600000);
 
-        // Assert
         Assert.Equal(9u, result);
     }
 
     [Fact]
     public void GetConfirmationsNeeded_EmptyList_ThrowsException()
     {
-        // Arrange
         var config = CreateValidConfig(confirmations: []);
 
-        // Act & Assert
         Assert.Throws<InvalidOperationException>(() => config.GetConfirmationsNeeded(5000));
     }
 }
